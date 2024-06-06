@@ -7,6 +7,9 @@
 #include "characters.h"
 #include <math.h>
 
+#include <global_variables.h>
+
+
 
 /// Structures
 typedef struct {
@@ -34,14 +37,14 @@ typedef struct {
     int *l_bottom;
     int timesVisited; // The number of times the cell has been visited (Used in path finding algorithms)
     int distance; // The distance (in number of cells) from a certain starting point (Used in path finding algorithms)
-    int size;
-    int spacing;
+    double size;
+    double spacing;
     int isColorful;
 
     coord index;
 
-    SDL_Rect rect;
-    SDL_Rect foodrects[5]; // Rects to contain the food textures when drawing the cell
+    SDL_FRect rect;
+    SDL_FRect foodrects[5]; // Rects to contain the food textures when drawing the cell
     SDL_Window* window; // The window on which the cell is drawn (Inherits it from the plan in which the cell is)
     SDL_Renderer* renderer; // The renderer on which the cell is drawn (Inherits it from the plan in which the cell is)
 } cell;
@@ -54,13 +57,13 @@ typedef struct {
     int sizeY; // The number of cells vertically
 
     // Info about the edges of the plane (Can be handy sometimes)
-    int top;
-    int left;
-    int right;
-    int bottom;
+    double top;
+    double left;
+    double right;
+    double bottom;
 
-    int cellSize; // Size of cells in the plane
-    int cellSpacing; // Spacing size of cells in the plane
+    double cellSize; // Size of cells in the plane
+    double cellSpacing; // Spacing size of cells in the plane
     int numFoods; // Total amount of food in all cells in the plane
     int isColorful; // If the maze is colo
     cell **self;
@@ -75,12 +78,12 @@ typedef struct {
 
 /// Function prototypes
 void color(int fg, int bg);
-plane InitializePlane(int numCellsX, int numCellsY, int topEdge, int leftEdge, int cellSize, int cellSpacing, SDL_Color cellCol, SDL_Color borderCol, SDL_Window* window, SDL_Renderer* renderer);
+plane InitializePlane(int numCellsX, int numCellsY, double topEdge, double leftEdge, double cellSize, double cellSpacing, SDL_Color cellCol, SDL_Color borderCol, SDL_Window* window, SDL_Renderer* renderer);
 void DrawPlane(plane p, int showFood);
 int existsIsolated(plane p);
 void MazifyPlane(plane *p, int showProcess);
 void frame(int x1, int x2, int y1, int y2);
-void DrawCell(cell c, int size, int cellSpacing, SDL_Color cellCol, SDL_Color borderCol);
+void DrawCell(cell c, double size, double cellSpacing, SDL_Color cellCol, SDL_Color borderCol);
 void DrawCellBorders(cell c, int size, int cellSpacing, SDL_Color borderCol);
 int RandlinkCell(plane *p, int i, int j);
 int RandlinkCellToIsolated(plane *p, int i, int j);
@@ -109,7 +112,7 @@ int existsIsolated(plane p) {
     return 0;
 }
 
-plane InitializePlane(int numCellsX, int numCellsY, int topEdge, int leftEdge, int cellSize, int cellSpacing, SDL_Color cellCol, SDL_Color borderCol, SDL_Window* window, SDL_Renderer* renderer) {
+plane InitializePlane(int numCellsX, int numCellsY, double topEdge, double leftEdge, double cellSize, double cellSpacing, SDL_Color cellCol, SDL_Color borderCol, SDL_Window* window, SDL_Renderer* renderer) {
     plane p;
     p.renderer = renderer;
     p.cellCol = cellCol;
@@ -154,7 +157,7 @@ plane InitializePlane(int numCellsX, int numCellsY, int topEdge, int leftEdge, i
             p.self[i][j].spacing = cellSpacing;
 
             // Set rect
-            SDL_Rect characterRect = { (int)p.self[i][j].x, p.self[i][j].y, p.cellSize, p.cellSize };
+            SDL_FRect characterRect = { (float)p.self[i][j].x, (float)p.self[i][j].y, (float)p.cellSize, (float)p.cellSize };
             p.self[i][j].rect = characterRect;
             p.self[i][j].window = window;
             p.self[i][j].renderer = renderer;
@@ -185,22 +188,22 @@ plane InitializePlane(int numCellsX, int numCellsY, int topEdge, int leftEdge, i
             float x, y; // Food rect position
             x = (p.self[i][j].x - cellSpacing / 2.0 + (cellSize + cellSpacing) * (1.0 / 2)) - w / 2; // 1/3 along cell rect
             y = (p.self[i][j].y - cellSpacing / 2.0 + (cellSize + cellSpacing) * (1.0 / 6)) - h / 2; // vertical middle of cell rect
-            SDL_Rect fr0 = {.x = (int)x, .y = (int)y, .w = (int)w, .h = (int)h};
+            SDL_FRect fr0 = {.x = (float)x, .y = (float)y, .w = (float)w, .h = (float)h};
             p.self[i][j].foodrects[0] = fr0;
 
             x = (p.self[i][j].x - cellSpacing / 2.0 + (cellSize + cellSpacing) * (5.0 / 6)) - w / 2; // 1/3 along cell rect
             y = (p.self[i][j].y - cellSpacing / 2.0 + (cellSize + cellSpacing) * (1.0 / 2)) - h / 2; // vertical middle of cell rect
-            SDL_Rect fr1 = {.x = (int)x, .y = (int)y, .w = (int)w, .h = (int)h};
+            SDL_FRect fr1 = {.x = (float)x, .y = (float)y, .w = (float)w, .h = (float)h};
             p.self[i][j].foodrects[1] = fr1;
 
             x = (p.self[i][j].x - cellSpacing / 2.0 + (cellSize + cellSpacing) * (1.0 / 2)) - w / 2; // 1/3 along cell rect
             y = (p.self[i][j].y - cellSpacing / 2.0 + (cellSize + cellSpacing) * (5.0 / 6)) - h / 2; // vertical middle of cell rect
-            SDL_Rect fr2 = {.x = (int)x, .y = (int)y, .w = (int)w, .h = (int)h};
+            SDL_FRect fr2 = {.x = (float)x, .y = (float)y, .w = (float)w, .h = (float)h};
             p.self[i][j].foodrects[2] = fr2;
 
             x = (p.self[i][j].x - cellSpacing / 2.0 + (cellSize + cellSpacing) * (1.0 / 6)) - w / 2; // 1/3 along cell rect
             y = (p.self[i][j].y - cellSpacing / 2.0 + (cellSize + cellSpacing) * (1.0 / 2)) - h / 2; // vertical middle of cell rect
-            SDL_Rect fr3 = {.x = (int)x, .y = (int)y, .w = (int)w, .h = (int)h};
+            SDL_FRect fr3 = {.x = (float)x, .y = (float)y, .w = (float)w, .h = (float)h};
             p.self[i][j].foodrects[3] = fr3;
 
 //			srand(clock() + rand());
@@ -210,7 +213,7 @@ plane InitializePlane(int numCellsX, int numCellsY, int topEdge, int leftEdge, i
             }
             x = (p.self[i][j].x - cellSpacing / 2.0 + (cellSize + cellSpacing) * (1.0 / 2)) - w / 2; // 1/3 along cell rect
             y = (p.self[i][j].y - cellSpacing / 2.0 + (cellSize + cellSpacing) * (1.0 / 2)) - h / 2; // vertical middle of cell rect
-            SDL_Rect fr4 = {.x = (int)x, .y = (int)y, .w = (int)w, .h = (int)h};
+            SDL_FRect fr4 = {.x = (float)x, .y = (float)y, .w = (float)w, .h = (float)h};
             p.self[i][j].foodrects[4] = fr4;
 
         }
@@ -250,7 +253,7 @@ void DrawCellBorders(cell c, int size, int cellSpacing, SDL_Color borderCol) {
 
 
     if (c.isColorful) {
-        SDL_SetRenderDrawColor(c.renderer, rand() % 255, rand() % 255, rand() % 255, 0);
+        SDL_SetRenderDrawColor(c.renderer, rand() % 200, rand() % 200, rand() % 200, 0);
     } else {
         SDL_SetRenderDrawColor(c.renderer, borderCol.r, borderCol.g, borderCol.b, borderCol.a);
     }
@@ -327,7 +330,7 @@ void DrawCellBorders(cell c, int size, int cellSpacing, SDL_Color borderCol) {
 //	}
 }
 
-void DrawCell(cell c, int size, int cellSpacing, SDL_Color cellCol, SDL_Color borderCol) {
+void DrawCell(cell c, double size, double cellSpacing, SDL_Color cellCol, SDL_Color borderCol) {
     /*
     This part was removed (commented) because for the PAC MAN game needs only the borders
 
@@ -364,6 +367,7 @@ void DrawCell(cell c, int size, int cellSpacing, SDL_Color cellCol, SDL_Color bo
 
     */
     DrawCellBorders(c, size, cellSpacing, borderCol);
+    if (cellCol.a) {}
 }
 
 int IsCellIsolated(plane p, int i, int j) {
@@ -475,10 +479,24 @@ void DrawPlane(plane p, int showFood) {
     /*
     	To draw all the cells in the plane.
     */
+//    if (p.isColorful) {
+//        SDL_SetRenderDrawColor(p.renderer, rand() % 255, rand() % 255, rand() % 255, 0);
+//    } else {
+//        SDL_SetRenderDrawColor(p.renderer, p.borderCol.r, p.borderCol.g, p.borderCol.b, p.borderCol.a);
+//    }
+    int midj = p.sizeY / 2;
+    p.self[0][0].isColorful = p.isColorful;
     for (int i = 0; i < p.sizeX; i++) {
         for (int j = 0; j < p.sizeY; j++) {
-            p.self[i][j].isColorful = p.isColorful; // To inherit the colorfulness of the plane
-            int midj = p.sizeY / 2;
+            if (p.self[i][j].isColorful != p.isColorful && !(j == midj && (i == 0 || i == p.sizeX - 1))) {
+                p.self[i][j].isColorful = p.isColorful;
+                goto next;
+            }
+        }
+    }
+next:
+    for (int i = 0; i < p.sizeX; i++) {
+        for (int j = 0; j < p.sizeY; j++) {
             if (j == midj && (i == 0 || i == p.sizeX - 1)) { // To say that the portal cells are colorful all the time
                 p.self[i][j].isColorful = 1;
             }
@@ -488,10 +506,10 @@ void DrawPlane(plane p, int showFood) {
             if (showFood) { // To draw the food on the food in a cell
                 for (int k = 0; k < 5; k++) {
                     if (p.self[i][j].foods[k] == 1) { // If the food is simple
-                        SDL_RenderCopy(p.self[i][j].renderer, p.foodTexture, NULL, &p.self[i][j].foodrects[k]);
+                        SDL_RenderCopyF(p.self[i][j].renderer, p.foodTexture, NULL, &p.self[i][j].foodrects[k]);
                     }
                     if (p.self[i][j].foods[k] == 2) { // If the food is special
-                        SDL_RenderCopy(p.self[i][j].renderer, p.bonusTexture, NULL, &p.self[i][j].foodrects[k]);
+                        SDL_RenderCopyF(p.self[i][j].renderer, p.bonusTexture, NULL, &p.self[i][j].foodrects[k]);
                     }
                 }
             }
@@ -1585,9 +1603,9 @@ void MazifyPlane(plane *p, int showProcess) {
     coord *stack;
     coord begining;
     stack = (coord *)malloc(sizeof(coord) * total);
-    begining.i = p->sizeX - 1;
+    begining.i = rand()%(p->sizeX - 6) + 3;
     randomize();
-    begining.j = p->sizeY - 1;
+    begining.j = rand()%p->sizeY;
     int pos = 0, lastPos = 0;
     int numVisited = 1; // (number of cells visited)
     stack[pos] = begining;
@@ -1597,7 +1615,9 @@ void MazifyPlane(plane *p, int showProcess) {
         // Our event listener to avoid the computer thinking that the program is not responding
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_QUIT) {
-                break;
+			   Global_quit = 1;
+			   showProcess = 0;
+      		   break;
             }
             if (ev.type == SDL_KEYDOWN) {
                 showProcess = 0;
@@ -1648,20 +1668,20 @@ void MazifyPlane(plane *p, int showProcess) {
         if (showProcess != 0) {
             SDL_SetRenderDrawColor(p->renderer, 0, 0, 0, 0);
             SDL_RenderClear(p->renderer);
-            SDL_SetRenderDrawColor(p->renderer, 255 / 2, 255 / 2, 255 / 2, 0);
-            SDL_RenderFillRect(p->renderer, &p->self[stack[lastPos].i][stack[lastPos].j].rect);
+            SDL_SetRenderDrawColor(p->renderer, 255 / 3, 255 / 3, 255 / 3, 0);
+            SDL_RenderFillRectF(p->renderer, &p->self[stack[lastPos].i][stack[lastPos].j].rect);
             SDL_SetRenderDrawColor(p->renderer, 255, 255, 255, 0);
-            SDL_RenderFillRect(p->renderer, &p->self[stack[pos].i][stack[pos].j].rect);
+            SDL_RenderFillRectF(p->renderer, &p->self[stack[pos].i][stack[pos].j].rect);
 //        DrawCell(p->self[stack[lastPos].i][stack[lastPos].j], p->cellSize, p->cellSpacing, p->borderCol, p->cellCol);
 //        DrawCell(p->self[stack[pos].i][stack[pos].j], p->cellSize, p->cellSpacing, p->cellCol, p->borderCol);
             DrawPlane(*p, 0);
 //      SDL_SetRenderDrawColor(p->renderer, 255, 255, 255, 0);
 //		SDL_RenderFillRect(p->renderer, &p->self[stack[lastPos].i][stack[lastPos].j].rect);
             SDL_RenderPresent(p->renderer);
-            SDL_Delay(50);
+            SDL_Delay(20);
         }
 //        // printf("%d\n", total - numVisited);
-    } while (numVisited != total - 14); // There are 14 cells which were linked by default
+    } while (numVisited != total - 14 && !Global_quit); // There are 14 cells which were linked by default
     // Ghost house
 //    int x, y;
 
@@ -1942,9 +1962,9 @@ void MazifyPlane(plane *p, int showProcess) {
                     *p->self[i][j].l_bottom = 1;
                 }
             }
-            if(IsCellIsolated(*p, i, j)){
-				RandlinkCell(p, i, j);
-			}
+            if (IsCellIsolated(*p, i, j)) {
+                RandlinkCell(p, i, j);
+            }
         }
     }
 

@@ -1,141 +1,91 @@
-#include <stdio.h>
-#include <time.h>
-#include <windows.h>
-#include <stdlib.h>
-#include <conio.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
-#include <pac.h>
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL_image.h>
-#include <string.h>
+#include <main.h>
 
+#define RECORDS_FILE "data/records.dat"
+#define HIGHSCORES_FILE "data/high.dat"
 
-typedef struct button {
-    /*
-    A button is a piece of text displayed on the screen using in a rect
-    */
-    char text[100]; // Text on the button
-    char* fontDirectory; // Directoty of the font used for the button
-    SDL_Color color; // Color of the button
-    SDL_Renderer* renderer; // Renderer of the button
-    SDL_Rect rect; // Rect of the button
-    SDL_Texture* texture; // Botton texture (image of the button)
-    int fontSize; // Font size used when creating button image
-} button;
-
-typedef struct menu {
-    /*
-    A menu is a set of buttons:
-    	- The title button
-    	- The menu options' buttons
-    Among those buttons, one is highlighted
-    It also has a back ground music and a click sound (A sound to be played when a key is pressed while in menu)
-    */
-    char **menutext; // Set of strings of the menu options
-    char *menuTitle; // Text of menu title
-    int numOptions; // NUmber of options in a menu
-    int mx; // x coordinate of the tile button
-    int my; // y coordinate of the tile button
-    int indent; // Indent of the menu optionn's buttons with respect to the menu title button
-    int fontSize; // Font size of the menu options' buttons
-    button* menuButtons; // Menu options buttons
-    button menuTitleButton; // Menu title button
-    int bg_Channel; // Channel of the bg music
-    int click_channel; // Channel of the click sound
-    Mix_Chunk* bgSound; // Back ground music
-    Mix_Chunk* clickSound; // Click sound effect
-    SDL_Renderer* renderer; // Renderer
-    SDL_Color seleColor; // Highlighted button's and menu title's font color
-    SDL_Color idleColor; // Other buttons' font color
-} menu;
-
-void createButtonTexture(button* b);
-button newButton(SDL_Renderer* ren, char* fontDirectory, int fontSize, SDL_Color txtColor, char* txt);
-int drawButton(button b);
-void setButtonText(button* b, char* txt, int fontSize);
-menu newMenu(SDL_Renderer* ren,
-             char *menuTitle,
-             char **menutext, int numOptions,
-             int fontSize, int indent, int mx,
-             int my, SDL_Color seleColor, SDL_Color idleColor,
-             int bg_channel,
-             Mix_Chunk* bg_sound, int click_channel,
-             Mix_Chunk* clickSound);
-int showMenu(menu m);
-void printScore(button digits[20], int num, int x, int y);
-void checkEvents(int numGhosts);
-int initSDL();
+// Window and renderer
+SDL_Window *window = NULL;
+SDL_Renderer *renderer = NULL;
 /////////////////////////////
 //     Global variables    //
 /////////////////////////////
 
-// Window and renderer
-SDL_Window* window = NULL;
-SDL_Renderer* renderer = NULL;
-
-
-// Window height and width
-#define SCREEN_WIDTH 1920/1.9
-#define SCREEN_HEIGHT 1080/1.2
-
-// Different (track) channels
-#define STAGE_MUSIC 0
-#define BG1 1
-#define EAT 2
-#define SPECIAL_FOOD 3
-#define HURT 4
-#define GHOST_EATEN 5
-#define DIE 6
-#define CLICK 7
-#define MAIN_MENU 8
-#define WIN_LEVEL 9
-
-#define NUM_CHANNELS 10 // Total number of sound tracks (channels)
-
-
+// A plane which will to transformed to a maze
+plane plan;
 // Pointer for an array of ghosts
-Ghost* g;
+Ghost *g;
 // Create pacman
 pac p;
 
-int quit = 0;
-int pause = 0;
+pac livesp[3];
 
-// Variable to store keyboard events
-SDL_Event event;
-
-// A plane which will to transformed to a maze
-plane plan;
-
-// Sounds
-Mix_Chunk* sounds[NUM_CHANNELS];
+int start = 2;
 
 // Score buttons
-button score[2];
+button score;
+button highScore;
 
 button digits[20];
 
+double PlayingScore = 0;
+int levels_reached;
+int got_out_menu;
+
+int classicHigh = 0;
+int randomHigh = 0;
+int crazyHigh = 0;
+int numLevelsClassic; // Load the number of unlocked levels from a file
+int numLevelsRandom;  // Load the number of unlocked levels from a file
+int numLevelsCrazy;   // Load the number of unlocked levels from a file
 //    end/Global variables
 /////////////////////////////
 
-int playLevel(int level, int gameMode) {
-    int numGhosts;
-    if (gameMode == 0) {
-        initPac(&p, 50, window, renderer, level);
-        numGhosts = 4;
-    } else {
-        initPac(&p, 40, window, renderer, level);
-        numGhosts = 4 + (level) / 10;
+
+void callBackForChannels(int channel);
+
+int playLevel(int level, int gameMode, int previousScore) {
+    int high;
+    switch (gameMode) {
+        case 0:
+            high = classicHigh;
+            break;
+        case 1:
+            high = randomHigh;
+            break;
+        case 2:
+            high = crazyHigh;
+            break;
+        default:
+            //TODO
+            break;
     }
 
+    PlayingScore = previousScore;
+    playing = 1;
+    pause = 0;
+    start = 2;
+    int numGhosts;
+    int stageMusic = level % NUM_OF_LEVEL_SOUND_TRACKS;
+    Mix_PlayChannel(stageMusic, sounds[stageMusic], -1);
+    if (gameMode == 0) {
+        initPac(&p, 60 * 3.2 / 4, window, renderer, level);
+        p.deltaSize *= 4;
+        numGhosts = 4;
+        plan = InitializePlane(10, 11, p.size, p.size, p.size * 1.1, p.size * 0.5, bg_color, borderColor, window, renderer);
+        ClassicMaze(&plan);
+    } else {
+        initPac(&p, 1400 / ((18 + level / 2) * 1.6), window, renderer, level);
+        p.deltaSize *= 3;
+        numGhosts = 4 + (level) / 4;
+        plan = InitializePlane(10 + level / 2, 11 + level / 2, p.size, p.size, p.size * 1.1, p.size * 0.5, bg_color, borderColor, window, renderer);
+        MazifyPlane(&plan, 1);
+    }
+    p.score = previousScore;
 
-    g = (Ghost*)malloc(numGhosts * sizeof(Ghost));
+
+    g = (Ghost *)malloc(numGhosts * sizeof(Ghost));
     // Manage errors while creating ghosts
-    if (initGhost(g, (1 + level * 0.01)*p.size, window, renderer, numGhosts, level) == 0) {
+    if (initGhost(g, (0.95 + level * 0.01) * p.size / 1.15, window, renderer, numGhosts, level, plan, p) == 0) {
         // // // printf("\nGhosts initialized\n");
     } else {
         // printf("Error Ghost");
@@ -143,7 +93,8 @@ int playLevel(int level, int gameMode) {
     Mix_PlayChannel(BG1, sounds[BG1], -1);
 
     DrawPlane(plan, 0);
-    // Set pac position to top-left square in grid
+
+    // Set pac position to bottom square in grid
     p.pos = plan.self[plan.sizeX / 2 - 1][plan.sizeY - 3];
     p.x = p.pos.rect.x + 5;
     p.y = p.pos.rect.y + 5;
@@ -158,13 +109,13 @@ int playLevel(int level, int gameMode) {
         g[i].pos = plan.self[(int)((plan.sizeX) / 2 - (i % 4) % 2)][(int)((plan.sizeY / 2))];
         g[i].x = g[i].pos.rect.x + g[i].pos.rect.w / 2 - g[i].rect.w / 2 + (i % 4 - 1) * g[i].size;
         g[i].y = g[i].pos.rect.y + g[i].pos.rect.h / 2 - g[i].rect.h / 2;
-        if (level > 7) {
-            gspeed = p.speed;
+        if (level > 8) {
+            gspeed = p.speed * 0.90;
         } else {
-            gspeed = (0.7 + level * 0.04) * p.speed;
+            gspeed = (0.7 + level * 0.03) * p.speed;
         }
         g[i].speed = gspeed;
-        g[i].eatenSpeed = g[i].speed * 1.2;
+        g[i].eatenSpeed = g[i].speed * 3;
         g[i].eatenSize = g[i].size / 2;
         g[i].frightSpeed = g[i].speed * 0.8;
         g[i].normalSize = g[i].size;
@@ -178,52 +129,102 @@ int playLevel(int level, int gameMode) {
         }
     }
 
+
+    /*
+      Side game buttons
+    */
+
+    // level button
+    char lvltxt[20] = "";
+    if (gameMode == 0) {
+        sprintf(lvltxt, "Classic lvl %d", level + 1);
+    } else if (gameMode == 1) {
+        sprintf(lvltxt, "Random lvl %d", level + 1);
+    } else if (gameMode == 2) {
+        sprintf(lvltxt, "Classic lvl %d", level + 1);
+    }
+    button lvlbtn = newButton(renderer, "fonts/joystix monospace.otf", 50, white, lvltxt);
+    lvlbtn.rect.x = plan.right;
+    lvlbtn.rect.y = plan.top;
+
     // Configure rects for health bar
-    SDL_Rect redHealthBar;
+    double factor = 10;
+    SDL_FRect redHealthBar;
     redHealthBar.x = plan.right;
-    redHealthBar.y = plan.top;
-    redHealthBar.w = (p.size - p.minSize) * 6;
+    redHealthBar.y = lvlbtn.rect.y + lvlbtn.rect.h * 1.2;
+    redHealthBar.w = (p.size - p.minSize) * factor;
     redHealthBar.h = p.size - p.minSize;
-    SDL_Rect greenHealthBar = redHealthBar;
-    SDL_Rect blackHealthBar = redHealthBar;
+    SDL_FRect greenHealthBar = redHealthBar;
+    SDL_FRect blackHealthBar = redHealthBar;
     blackHealthBar.x -= 5;
     blackHealthBar.w += 10;
     blackHealthBar.y -= 5;
     blackHealthBar.h += 10;
 
-
     // Score buttons
-    sprintf(score[1].text, "%d", p.score);
-    score[0] = newButton(renderer, "fonts/joystix monospace.otf", 30, (SDL_Color) {
+    highScore = newButton(renderer, "fonts/joystix monospace.otf", 35, (SDL_Color) {
+        255, 255, 200, 0
+    }, "High score");
+    highScore.rect.x = plan.right;
+    highScore.rect.y = blackHealthBar.y + blackHealthBar.h + 20;
+
+    score = newButton(renderer, "fonts/joystix monospace.otf", 30, (SDL_Color) {
         255, 255, 255, 0
     }, "Score");
-    score[0].rect.x = plan.right;
-    score[0].rect.y += blackHealthBar.y + blackHealthBar.h + 10;
-    score[1] = newButton(renderer, "fonts/joystix monospace.otf", 30, (SDL_Color) {
-        255, 255, 255, 0
-    }, score[1].text);
-    score[1].rect.x = plan.right;
-    score[1].rect.y = score[0].rect.y + score[0].rect.h + 10;
+    score.rect.x = highScore.rect.x;
+    score.rect.y = highScore.rect.y + highScore.rect.h + 90;
 
+    // 200 points button
     button p200 = newButton(renderer, "fonts/joystix monospace.otf", 15, (SDL_Color) {
         0, 255, 255, 0
     }, "200");
 
 
+    // Button to display the number of lives remaining with the three Pac man heads
+    button lives = newButton(renderer, "fonts/joystix monospace.otf", 30, white, "Lives:");
+    for (int i = 0; i < 3; i++) {
+        livesp[i].x = plan.right + i * (livesp[i].size + 10);
+        livesp[i].y = score.rect.y + score.rect.w * 2.3;
+    }
+    lives.rect.x = plan.right;
+    lives.rect.y = livesp[0].y - livesp[0].size;
+
+    // Pause Menu buttons
+    button pauseMenu[2][2];
+    pauseMenu[0][0] = newButton(renderer, "fonts/Crackman Back.otf", 25, white, "Continue");
+    pauseMenu[0][0].rect.x = plan.right + 10;
+    pauseMenu[0][0].rect.y = score.rect.y + score.rect.h + 100;
+
+    pauseMenu[0][1] = newButton(renderer, "fonts/Crackman.otf", 30, yellow, ">>Continue");
+    pauseMenu[0][1].rect.x = plan.right + 10;
+    pauseMenu[0][1].rect.y = score.rect.y + score.rect.h + 100;
+
+    pauseMenu[1][0] = newButton(renderer, "fonts/Crackman Back.otf", 25, white, "Main Menu");
+    pauseMenu[1][0].rect.x = plan.right + 10;
+    pauseMenu[1][0].rect.y = pauseMenu[0][0].rect.y + pauseMenu[0][0].rect.h + 10;
+
+    pauseMenu[1][1] = newButton(renderer, "fonts/Crackman.otf", 30, yellow, ">>Main Menu");
+    pauseMenu[1][1].rect.x = plan.right + 10;
+    pauseMenu[1][1].rect.y = pauseMenu[0][0].rect.y + pauseMenu[0][0].rect.h + 10;
+
+
+
     // Main Game loop
-    int start = 2;
     clock_t changeMaze = clock();
     clock_t wintime = 0;
     plane planCopy;
     int changeMazePeriod = 10000 - 500 * level;
     // Create another plane of identical size to the game
     planCopy = InitializePlane(plan.sizeX, plan.sizeY, plan.top, plan.left, plan.cellSize, plan.cellSpacing, plan.cellCol, plan.borderCol, window, renderer);
-    while (!quit && (wintime == 0 || clock() - wintime < 2000)) {
+    while (!Global_quit && (wintime == 0 || clock() - wintime < 2000) && (playing || Mix_Playing(DIE))) {
         checkEvents(numGhosts);
-        if (gameMode == 2 && clock() - changeMaze > changeMazePeriod) { // Change maze every 6 seconds
+        if (gameMode == 2 && clock() - changeMaze > changeMazePeriod) {
+            // Change maze every 6 seconds
             planCopy.isColorful = plan.isColorful;
-            for (int i = 0; i < plan.sizeX; i++) { // Copy food from plan to planCopy
+            for (int i = 0; i < plan.sizeX; i++) {
+                // Copy food from plan to planCopy
                 for (int j = 0; j < plan.sizeY; j++) {
+                    planCopy.self[i][j].isColorful = plan.self[i][j].isColorful;
                     for (int k = 0; k < 5; k++) {
                         planCopy.self[i][j].foods[k] = plan.self[i][j].foods[k];
                     }
@@ -235,8 +236,10 @@ int playLevel(int level, int gameMode) {
             MazifyPlane(&plan, 0);
 
             plan.isColorful = planCopy.isColorful;
-            for (int i = 0; i < plan.sizeX; i++) { // Copy food from planCopy to plan
+            for (int i = 0; i < plan.sizeX; i++) {
+                // Copy food from planCopy to plan
                 for (int j = 0; j < plan.sizeY; j++) {
+                    plan.self[i][j].isColorful = planCopy.self[i][j].isColorful;
                     for (int k = 0; k < 5; k++) {
                         plan.self[i][j].foods[k] = planCopy.self[i][j].foods[k];
                     }
@@ -252,43 +255,55 @@ int playLevel(int level, int gameMode) {
         // Clear the renderer
         SDL_RenderClear(renderer);
 
-        if ((wintime == 0 || clock() - wintime < 1000) && !pause) {
-            updatePacPos(&p, plan);
-        }
 
         // Draw health bar
-        if (greenHealthBar.w > (p.size - p.minSize) * 6) {
-            greenHealthBar.w -= 2;
+        if (greenHealthBar.w > (p.size - p.minSize) * factor) {
+            greenHealthBar.w -= (greenHealthBar.w - (p.size - p.minSize) * factor) / 40;
             if (p.size - p.minSize < 1) {
                 greenHealthBar.w = 0;
             }
-        } else if (greenHealthBar.w < (p.size - p.minSize) * 6) {
-            greenHealthBar.w++;
+        } else if (greenHealthBar.w < (p.size - p.minSize) * factor) {
+            greenHealthBar.w += ((p.size - p.minSize) * factor - greenHealthBar.w) / 80;
         }
 
         // Show score
-        drawButton(score[0]);
-        printScore(digits, p.score, score[1].rect.x, score[1].rect.y);
-//		SDL_DestroyTexture(score[1].texture);
+        drawButton(lvlbtn);
+        drawButton(highScore);
+        high = PlayingScore > high ? PlayingScore : high;
+        printScore(digits, high, highScore.rect.x, highScore.rect.y + highScore.rect.h + 10);
+        drawButton(score);
+        printScore(digits, PlayingScore, score.rect.x, score.rect.y + score.rect.h + 10);
 
         SDL_SetRenderDrawColor(renderer, 255, 255, 200, 0);
-        SDL_RenderFillRect(renderer, &blackHealthBar);
+        SDL_RenderFillRectF(renderer, &blackHealthBar);
         SDL_SetRenderDrawColor(renderer, 200, 0, 0, 0);
-        SDL_RenderFillRect(renderer, &redHealthBar);
+        SDL_RenderFillRectF(renderer, &redHealthBar);
         SDL_SetRenderDrawColor(renderer, ((p.maxSize - p.size) / (p.maxSize - p.minSize)) * 255, 250, 0, 0);
-        SDL_RenderFillRect(renderer, &greenHealthBar);
-
+        SDL_RenderFillRectF(renderer, &greenHealthBar);
 
         // Draw maze
         SDL_SetRenderDrawColor(renderer, 200, 10, 10, 10);
         DrawPlane(plan, 1);
+
         // Draw the character textures
         drawPac(&p);
+        // the other Pac Man heads by the side and the button
+        drawButton(lives);
+        for (int i = 0; i < p.lives; i++) {
+            drawPac(&livesp[i]);
+            if (i == p.lives - 1) {
+                SDL_SetRenderDrawColor(renderer, rand() % 255, rand() % 255, rand() % 255, 0);
+                SDL_RenderDrawRectF(renderer, &livesp[i].rect);
+            }
+        }
         for (int i = 0; i < numGhosts; i++) {
             drawGhost(&g[i]);
         }
 
-        if (!pause) {
+        if ((wintime == 0 || clock() - wintime < 1000) && !pause && !Mix_Playing(DIE) && !Mix_Playing(BEGIN)) {
+            updatePacPos(&p, plan);
+        }
+        if (!pause && !Mix_Playing(DIE) && !Mix_Playing(BEGIN)) {
             // Ghost operations
             if (wintime == 0) {
                 changeGhostDestination(g, plan, &p, numGhosts);
@@ -296,164 +311,97 @@ int playLevel(int level, int gameMode) {
                     updateGhostPos(&g[i], plan, g[i].immediateDest);
                 }
             }
+        } else if (pause) {
+            // Draw Pause mini menu
+            for (int i = 0; i < 2; i++) {
+                if (pauseOption == i) {
+                    drawButton(pauseMenu[i][1]);
+                } else {
+                    drawButton(pauseMenu[i][0]);
+                }
+            }
         }
 
         // To draw do several iterations of drawing p200 and delay after eaten ghost
-        if (p.hasEatenGhost == 30) {
+        if (p.hasEatenGhost == 100) {
             drawButton(p200);
             p.hasEatenGhost = 0;
         } else if (p.hasEatenGhost != 0) {
             p200.rect.x = p.rect.x + p.rect.w / 2 - p200.rect.w / 2;
             p200.rect.y = p.rect.y - p200.rect.h;
             drawButton(p200);
-            if (p.hasEatenGhost == 5) {
+            if (p.hasEatenGhost == 10) {
                 SDL_Delay(300);
+                Mix_PlayChannel(ALARM, sounds[ALARM], -1);
             }
             p.hasEatenGhost++;
+        }
+
+        if (Mix_Playing(GHOST_EATEN)) {
+            if (p.hasEatenGhost == 1) {
+                p.hasEatenGhost = 0;
+                SDL_Delay(300);
+                Mix_PlayChannel(ALARM, sounds[ALARM], -1);
+            }
+            p200.rect.x = p.rect.x + p.rect.w / 2 - p200.rect.w / 2;
+            p200.rect.y = p.rect.y - p200.rect.h;
+            drawButton(p200);
         }
 
         // Set drawing color color,
         SDL_SetRenderDrawColor(renderer, 10, 10, 200, 10);
 
         // Present the renderer
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
-        SDL_RenderDrawRect(renderer, &g[0].target.rect);
-        SDL_SetRenderDrawColor(renderer, 255, 0, 255, 0);
-        SDL_RenderDrawRect(renderer, &g[1].target.rect);
-        SDL_SetRenderDrawColor(renderer, 50, 50, 255, 0);
-        SDL_RenderDrawRect(renderer, &g[2].target.rect);
-        SDL_SetRenderDrawColor(renderer, 255, 250, 0, 0);
-        SDL_RenderDrawRect(renderer, &g[3].target.rect);
-        SDL_RenderDrawRect(renderer, &p.pos.rect);
-        int x1 = g[0].pos.x;
-        int x2 = g[2].target.x;
-        int y1 = g[0].pos.y;
-        int y2 = g[2].target.y;
-        SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+//        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
+//        SDL_RenderDrawRect(renderer, &g[0].target.rect);
+//        SDL_SetRenderDrawColor(renderer, 255, 0, 255, 0);
+//        SDL_RenderDrawRect(renderer, &g[1].target.rect);
+//        SDL_SetRenderDrawColor(renderer, 50, 50, 255, 0);
+//        SDL_RenderDrawRect(renderer, &g[2].target.rect);
+//        SDL_SetRenderDrawColor(renderer, 255, 250, 0, 0);
+//        SDL_RenderDrawRect(renderer, &g[3].target.rect);
+//        SDL_RenderDrawRect(renderer, &p.pos.rect);
+
+//        int x1 = g[0].pos.x;
+//        int x2 = g[2].target.x;
+//        int y1 = g[0].pos.y;
+//        int y2 = g[2].target.y;
+//        SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
 
         if (plan.numFoods == 0 && wintime == 0) {
-            Mix_PlayChannel(WIN_LEVEL, sounds[WIN_LEVEL], 0);
-            Mix_HaltChannel(BG1);
-            Mix_HaltChannel(STAGE_MUSIC);
+            Mix_PlayChannel(STAGE_CLEAR, sounds[STAGE_CLEAR], 0);
+            Mix_FadeOutChannel(BG1, 2000);
+            Mix_FadeOutChannel(stageMusic, 2000);
             wintime = clock();
         }
         SDL_RenderPresent(renderer);
-        if (start) {
-            if (start == 1) {
-                SDL_Delay(1500);
-            }
-            start--;
+        if (start && p.lives > 0) {
+//            if (start == 1) {
+            Mix_FadeOutChannel(stageMusic, 1500);
+            Mix_PlayChannel(BEGIN, sounds[BEGIN], 0);
+//            }
+//            start--;
+            start = 0;
+        } else if (!Mix_Playing(BEGIN) && !Mix_Playing(stageMusic) && p.lives > 0) {
+            Mix_FadeInChannel(stageMusic, sounds[stageMusic], -1, 1500);
         }
     }
-    return 0;
-}
-
-int main(int argc, char* argv[]) {
-    initSDL();
-    Sleep(500);
-
-    // This is the main manu text
-    char** menutxt = (char**)malloc(10 * sizeof(char*));
-    menutxt[0] = "Classic";
-    menutxt[1] = "Random Maze";
-    menutxt[2] = "Crazy Maze!?";
-    menutxt[3] = "Leader Boards";
-    menutxt[4] = "Quit";
-    menutxt[5] = "!? PAC MAN ?!"; // Title of the menu with menu options just not to create another variable
-
-    int menuNumOptions = 5;
-
-    char** subMenutxt = (char**)malloc(16 * sizeof(char*));
-
-    // Maze colors
-    SDL_Color bg_color = {0, 0, 10, 0};
-    SDL_Color borderColor = {0, 0, 200, 0};
-
-    // Create Main menu
-    SDL_Color highlight_color = {.r = 255, .g = 240, .b = 0, .a = 0};
-    SDL_Color menu_text_color = {.r = 50, .g = 50, .b = 100, .a = 0	};
-    menu MainMenu = newMenu(renderer, menutxt[menuNumOptions], menutxt, menuNumOptions, 50, 100, 20, 25, highlight_color, menu_text_color, MAIN_MENU, sounds[MAIN_MENU], CLICK, sounds[CLICK]);
-
-    // Main menu
-    int choice; // Stores what choice has been made in main menu
-    int level = 1; // Stores what level was choosed in sub-menus (Classic, Random Maze, Crazy Maze)
-begin:
-    initPac(&p, 50, window, renderer, 1);
-
-    choice = showMenu(MainMenu); // Which choice has been made. It also repreesents the game mode
-    quit = 0; // The game will start
-
-    // Handle the choices made in the menu
-    int numLevels = 14; // Load the number of unlocked levels from a file
-    if (choice == 0) { // If classic was choosed
-        for (int i = 0; i < numLevels; i++) { // Create text for all levels
-            subMenutxt[i] = (char*)malloc(20 * sizeof(char));
-            sprintf(subMenutxt[i], "Level %d", i + 1);
-        }
-        subMenutxt[numLevels] = "Back"; // At last position for the options
-
-        // Create a menu for the text created above
-        menu subMenu = newMenu(renderer, "Classic", subMenutxt, numLevels + 1, 40, 20, 140, 100, highlight_color, menu_text_color, MAIN_MENU, sounds[MAIN_MENU], CLICK, sounds[CLICK]);
-        level = showMenu(subMenu); // Show the classic menu
-        if (level == numLevels) { // If back has been chosed
-            goto begin; // Goto main menu
-        }
-        Mix_PlayChannel(STAGE_MUSIC, sounds[STAGE_MUSIC], -1);
-        plan = InitializePlane(10, 11, p.size, p.size, p.size * 1.2, p.size * 0.5, bg_color, borderColor, window, renderer);
-        ClassicMaze(&plan);
-    } else if (choice == 1) { // If random maze was choosed
-        for (int i = 0; i < numLevels; i++) { // Create text for all levels
-            subMenutxt[i] = (char*)malloc(20 * sizeof(char));
-            sprintf(subMenutxt[i], "Level %d", i + 1);
-        }
-        subMenutxt[numLevels] = "Back"; // At last position for the options
-
-        // Create a menu for the text created above
-        menu subMenu = newMenu(renderer, "Random Maze", subMenutxt, numLevels + 1, 40, 20, 140, 100, highlight_color, menu_text_color, MAIN_MENU, sounds[MAIN_MENU], CLICK, sounds[CLICK]);
-        level = showMenu(subMenu); // Show the classic menu
-        if (level == numLevels) { // If back has been chosed
-            goto begin; // Goto main menu
-        }
-        Mix_PlayChannel(STAGE_MUSIC, sounds[STAGE_MUSIC], -1);
-
-        initPac(&p, 35, window, renderer, level);
-        plan = InitializePlane(15 + rand() % 3, 13 + rand() % 3, p.size, p.size, p.size * 1.2, p.size * 0.5, bg_color, borderColor, window, renderer);
-        MazifyPlane(&plan, 1);
-    } else if (choice == 2) { // If crazy maze was choosed
-        for (int i = 0; i < numLevels; i++) { // Create text for all levels
-            subMenutxt[i] = (char*)malloc(20 * sizeof(char));
-            sprintf(subMenutxt[i], "Level %d", i + 1);
-        }
-        subMenutxt[numLevels] = "Back"; // At last position for the options
-
-        // Create a menu for the text created above
-        menu subMenu = newMenu(renderer, "CRaZyNeSs", subMenutxt, numLevels + 1, 40, 20, 140, 100, highlight_color, menu_text_color, MAIN_MENU, sounds[MAIN_MENU], CLICK, sounds[CLICK]);
-        level = showMenu(subMenu); // Show the classic menu
-        if (level == numLevels) { // If back has been chosed
-            goto begin; // Goto main menu
-        }
-        Mix_PlayChannel(STAGE_MUSIC, sounds[STAGE_MUSIC], -1);
-
-        initPac(&p, 35, window, renderer, level);
-        plan = InitializePlane(15 + rand() % 3, 13 + rand() % 3, p.size, p.size, p.size * 1.2, p.size * 0.5, bg_color, borderColor, window, renderer);
-        MazifyPlane(&plan, 1);
-    } else if (choice == 4) { // If Quit was choosed
-        quit = 1;
-        goto finalEnd;
-    }
-
-    playLevel(level, choice);
 
 
     // Clean all sounds
     for (int i = 0; i < NUM_CHANNELS; i++) {
         if (i != DIE) {
-            Mix_HaltChannel(i);
+            Mix_FadeOutChannel(i, 1500);
         }
     }
-    SDL_Delay(1000);
-    goto begin; // Goto main menu
 
+    // Progressive black screen
+//    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+//    for (int i = 0; i < 2000; i += 2) {
+//        SDL_RenderDrawLine(renderer, i, 0, i, 1200);
+//        SDL_RenderDrawLine(renderer, i + 1, 0, i + 1, 1200);
+//        SDL_RenderPresent(renderer);
+//    }
 
     // Clean up and exit
     for (int i = 0; i < p.numOfFrames; i++) {
@@ -461,65 +409,480 @@ begin:
             SDL_DestroyTexture(p.Textures[i]);
         }
     }
-    for (int j = 0; j < 4; j++) {
+
+    // destroy the ghost textures
+    for (int j = 0; j < numGhosts; j++) {
         for (int i = 0; i < g[j].numOfFrames; i++) {
             if (g[j].Textures[i]) {
                 SDL_DestroyTexture(g[j].Textures[i]);
             }
         }
     }
-//	SDL_DestroyTexture(plan.foodTexture);
-//	Mix_Chunk* stageMusic;
-//	Mix_Chunk* eat;
-//	Mix_Chunk* hurt;
-//	Mix_Chunk* die;
-//	Mix_Chunk* ghostEaten;
-//	Mix_Chunk* bg1;
-//	Mix_Chunk* specialFood;
-finalEnd:
     free(g);
+
+    while (Mix_Playing(STAGE_CLEAR) || Mix_Playing(DIE)) {}
+
+    // Save high score
+    switch (gameMode) {
+        case 0:
+            classicHigh = high;
+            break;
+        case 1:
+            randomHigh = high;
+            break;
+        case 2:
+            crazyHigh = high;
+            break;
+        default:
+            //TODO
+            break;
+    }
+
+    if (plan.numFoods == 0) {
+        levels_reached++;
+        playLevel(level + 1, gameMode, p.score);
+        return 1;
+    }
+    return 0;
+}
+
+int main(int argc, char *argv[]) {
+
+    // Load highscores and number of levels available
+    FILE* fptr = fopen(HIGHSCORES_FILE, "r");
+    fscanf(fptr, "%d\n%d\n%d\n%d\n%d\n%d", &classicHigh, &randomHigh, &crazyHigh, &numLevelsClassic, &numLevelsRandom, &numLevelsCrazy);
+    fclose(fptr);
+
+    initSDL();
+    Sleep(500);
+
+    // This is the main manu text
+    char **menutxt = (char **)malloc(10 * sizeof(char *));
+    menutxt[0] = "Classic";
+    menutxt[1] = "Random Maze";
+    menutxt[2] = "Crazy Maze!?";
+    menutxt[3] = "Leader Boards";
+    menutxt[4] = "Credits";
+    menutxt[5] = "Quit";
+    menutxt[6] = "!? PAC MAN ?!"; // Title of the menu with menu options just not to create another variable
+
+    int menuNumOptions = 6;
+
+    for (int i = 0; i < 3; i++) {
+        initPac(&livesp[i], 50, window, renderer, 0);
+    }
+
+    // Create Main menu
+    SDL_Color highlight_color = {.r = 255, .g = 240, .b = 0, .a = 0};
+    SDL_Color menu_text_color = {.r = 50, .g = 50, .b = 100, .a = 0};
+    menu MainMenu = newMenu(renderer, menutxt[menuNumOptions], menutxt, menuNumOptions, 50, 100, 20, 25, highlight_color, menu_text_color, MAIN_MENU, sounds[MAIN_MENU], CLICK, sounds[CLICK]);
+
+    // Showing Main menu and handling result of choice
+    int choice;    // Stores what choice has been made in main menu
+    int level = 0; // Stores what level was choosed in sub-menus (Classic, Random Maze, Crazy Maze)
+
+    while (!Global_quit) {
+        Global_quit = 0;
+        choice = showMenu(MainMenu); // Which choice has been made. It also repreesents the game mode
+
+        // Sub menu text memory allocation
+        char **subMenutxt = (char **)malloc(20 * sizeof(char *));
+
+        // Handle the choices made in the menu
+
+        if (choice == 0) {
+            // If classic was choosed
+            for (int i = 0; i < numLevelsClassic; i++) {
+                // Create text for all levels
+                subMenutxt[i] = (char*)malloc(30 * sizeof(char));
+                sprintf(subMenutxt[i], "Level %d", i + 1);
+            }
+            subMenutxt[numLevelsClassic] = "Back"; // At last position for the options
+
+            // Create a menu for the text created above
+            menu subMenu = newMenu(renderer, "Classic", subMenutxt, numLevelsClassic + 1, 35, 20, 140, 50, MainMenu.seleColor, MainMenu.idleColor, STAGE_SELECT, sounds[STAGE_SELECT], CLICK, sounds[CLICK]);
+            level = showMenu(subMenu); // Show the classic menu
+
+        } else if (choice == 1) {
+            // If random maze was choosed
+            for (int i = 0; i < numLevelsRandom; i++) {
+                // Create text for all levels
+                subMenutxt[i] = (char*)malloc(30 * sizeof(char));
+                sprintf(subMenutxt[i], "Level %d", i + 1);
+            }
+            subMenutxt[numLevelsRandom] = "Back"; // At last position for the options
+
+            // Create a menu for the text created above
+            menu subMenu = newMenu(renderer, "Random Maze", subMenutxt, numLevelsRandom + 1, 35, 20, 140, 50, MainMenu.seleColor, MainMenu.idleColor, STAGE_SELECT, sounds[STAGE_SELECT], CLICK, sounds[CLICK]);
+            level = showMenu(subMenu); // Show the classic menu
+
+        } else if (choice == 2) {
+            // If crazy maze was choosed
+            for (int i = 0; i < numLevelsCrazy; i++) {
+                // Create text for all levels
+                subMenutxt[i] = (char*)malloc(30 * sizeof(char));
+                sprintf(subMenutxt[i], "Level %d", i + 1);
+            }
+            subMenutxt[numLevelsCrazy] = "Back"; // At last position for the options
+
+            // Create a menu for the text created above
+            menu subMenu = newMenu(renderer, "CRaZyNeSs", subMenutxt, numLevelsCrazy + 1, 35, 20, 140, 50,  MainMenu.seleColor, MainMenu.idleColor, STAGE_SELECT, sounds[STAGE_SELECT], CLICK, sounds[CLICK]);
+            level = showMenu(subMenu); // Show the classic menu
+
+        } else if (choice == 3) { // Show leader boards
+            Mix_FadeInChannel(LEADERBOARDS, sounds[LEADERBOARDS], -1, 500);
+            int num = 0;
+            char h[100] = "";
+            sprintf(h, "         %s              %s   %s   %s", "Name", "Mode", "lvl", "Score");
+            button heads =  newButton(renderer, "fonts/Crackman.otf", 70, yellow, h);
+            heads.rect.x = 100;
+            heads.rect.y = 100;
+            button* recs = LoadRecordsIntoList(renderer, RECORDS_FILE, heads.rect.x, heads.rect.y + heads.rect.h, &num);
+            int learderBoards = 1;
+            while (learderBoards == 1) {
+                while (SDL_PollEvent(&event)) {
+                    if (event.type == SDL_QUIT) {
+                        learderBoards = 0;
+                        Global_quit = 1;
+                        break;
+                    }
+                    if (event.type == SDL_KEYDOWN) {
+                        learderBoards = 0;
+                    }
+                }
+                SDL_RenderClear(renderer);
+                drawButton(heads);
+                for (int i = 0; i < num; i++) {
+                    drawButton(recs[i]);
+                }
+
+                SDL_RenderPresent(renderer);
+            }
+            level = -1;
+            Mix_FadeOutChannel(LEADERBOARDS, 1000);
+
+            // Clean Screen smothly
+            SDL_SetRenderDrawColor(renderer, 0, 0, 30, 0);
+            for (int i = -1000; i < 3000; i += 2) {
+                SDL_RenderDrawLine(renderer, i, 0, i, 1200);
+                SDL_RenderDrawLine(renderer, i + 1, 0, i + 1, 1200);
+                SDL_RenderPresent(renderer);
+            }
+        } else if (choice == 4) {
+            // If Credits
+            Mix_FadeInChannel(LEADERBOARDS, sounds[LEADERBOARDS], -1, 500);
+            int num = 0;
+            char h[100] = "";
+            sprintf(h, "Credits");
+            button head =  newButton(renderer, "fonts/Crackman.otf", 100, yellow, h);
+            head.rect.x = 100;
+            head.rect.y = 100;
+			button btns[5];
+			sprintf(h, "Developed by Abena Alex Nelson Ryan");
+			btns[0] = newButton(renderer, "fonts/consolab.ttf", 50, white, h);
+			btns[0].rect.x = head.rect.x;
+			btns[0].rect.y = head.rect.y+head.rect.h;
+			sprintf(h, "at Saint Jean University during his");
+			btns[1] = newButton(renderer, "fonts/consolab.ttf", 50, white, h);
+			sprintf(h, "last year of common core (2023-2024).");
+			btns[2] = newButton(renderer, "fonts/consolab.ttf", 50, white, h);
+			sprintf(h, "From March to May 2024 ");
+			btns[3] = newButton(renderer, "fonts/consolab.ttf", 50, white, h);
+			sprintf(h, "      Don't forget!! ...  Have fun ;)");
+			btns[4] = newButton(renderer, "fonts/Crackman.otf", 60, white, h);
+			
+			for(int i=0;i<5;i++){
+				btns[i].rect.x = btns[i-1].rect.x;
+				btns[i].rect.y = btns[i-1].rect.y+btns[i-1].rect.h;
+			}
+			btns[4].rect.y += btns[4].rect.h;
+            int credits = 1;
+            while (credits == 1) {
+                while (SDL_PollEvent(&event)) {
+                    if (event.type == SDL_QUIT) {
+                        credits = 0;
+                        Global_quit = 1;
+                        break;
+                    }
+                    if (event.type == SDL_KEYDOWN) {
+                        credits = 0;
+                    }
+                }
+                SDL_RenderClear(renderer);
+                drawButton(head);
+                for (int i = 0; i < 5; i++) {
+                    drawButton(btns[i]);
+                }
+
+                SDL_RenderPresent(renderer);
+            }
+            level = -1;
+            Mix_FadeOutChannel(LEADERBOARDS, 1000);
+
+            // Clean Screen smothly
+            SDL_SetRenderDrawColor(renderer, 0, 0, 30, 0);
+            for (int i = -1000; i < 3000; i += 2) {
+                SDL_RenderDrawLine(renderer, i, 0, i, 1200);
+                SDL_RenderDrawLine(renderer, i + 1, 0, i + 1, 1200);
+                SDL_RenderPresent(renderer);
+            }
+            level = -1;
+        } else if (choice == -1) {
+            // If Quit was choosed
+            Global_quit = 1;
+            level = -1;
+        }
+
+        if (level >= 0) {
+            got_out_menu = 0;
+            PlayingScore = 0;
+            levels_reached = level;
+            playLevel(level, choice, 0);
+
+            // Register player record if did not go out to main menu
+            if (got_out_menu == 0) {
+                Mix_FadeInChannel(NAME_ENTRY, sounds[NAME_ENTRY], -1, 2000);
+                showScoreAnimation(renderer, PlayingScore, 1 + (levels_reached) * 0.1, 500, 400, COIN, sounds[COIN]);
+                record r;
+                if (choice == 0) {
+                    numLevelsClassic = levels_reached;
+                    if (PlayingScore > classicHigh) classicHigh = PlayingScore * (1 + (levels_reached) * 0.1);
+                    strcpy(r.mode, "Classic");
+                } else if (choice == 1) {
+                    numLevelsRandom = levels_reached;
+                    if (PlayingScore > randomHigh) randomHigh = PlayingScore * (1 + (levels_reached) * 0.1);
+                    strcpy(r.mode, "Random");
+                } else if (choice == 1) {
+                    numLevelsCrazy = levels_reached;
+                    if (PlayingScore > crazyHigh) crazyHigh = PlayingScore * (1 + (levels_reached) * 0.1);
+                    strcpy(r.mode, "Crazy");
+                }
+                r.lvl = levels_reached;
+                r.score = PlayingScore;
+                strcpy(r.name, who_are_you(renderer, 10, 400, TYPE, sounds[TYPE]));
+                writeRecordToFile(r, RECORDS_FILE);
+                Mix_FadeOutChannel(NAME_ENTRY, 1000);
+            }
+
+            // Clean Screen smothly
+            SDL_SetRenderDrawColor(renderer, 0, 0, 30, 0);
+            for (int i = 0; i < 2000; i += 2) {
+                SDL_RenderDrawLine(renderer, i, 0, i, 1200);
+                SDL_RenderDrawLine(renderer, i + 1, 0, i + 1, 1200);
+                SDL_RenderPresent(renderer);
+            }
+        }
+    }
+
     for (int i = 0; i < NUM_CHANNELS; i++) {
         Mix_FreeChunk(sounds[i]);
     }
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+
+    fptr = fopen(HIGHSCORES_FILE, "w");
+    fprintf(fptr, "%d\n%d\n%d\n%d\n%d\n%d", classicHigh, randomHigh, crazyHigh, numLevelsClassic, numLevelsRandom, numLevelsCrazy);
+    fclose(fptr);
     system("delete");
 
-    if (argc || argv) {} // Remove annoying warning
+    if (argc || argv) {
+    } // Remove annoying warning
     return 0;
 }
 
+void handlePacMazeInteractions(int numGhosts) {
+    /*
+      This will handle interactions between PacMan and the maze with the Food on it
+      It is here that we "frighten" the ghosts and we set the maze to be colorful
+    */
+
+    SDL_FRect inter;  // These rects will be used to store intersections
+    SDL_FRect inter1; // between some other rects
+    SDL_IntersectFRect(&p.rect, &p.pos.rect, &inter1);
+    // Update pac position cell
+    for (int i = 0; i < plan.sizeX; i++) {
+        for (int j = 0; j < plan.sizeY; j++) {
+            // Go through the maze and find the cell which intersects the most with Pac Man
+            // That cell will be set as Pac Man's poition
+
+            // Go through only the 6 (or less) closest cells
+            if (abs(p.pos.index.i - i) < 2 && abs(p.pos.index.j - j) < 2) {
+                // Manage interactions between the 5 foods which may be on a cell
+                for (int k = 0; k < 5; k++) {
+                    if ((plan.self[i][j].foods[k] != 0 && SDL_HasIntersectionF(&p.rect, &plan.self[i][j].foodrects[k]))) {
+                        int value;
+                        plan.numFoods--;
+                        value = plan.self[i][j].foods[k]; // Value of the food
+                        p.score += value * 10;
+                        PlayingScore += value * 10;
+                        plan.self[i][j].foods[k] = 0; // Say there is no more food in the cell
+
+                        if (p.size < p.maxSize) {
+                            // Prevents the size from exceeding the maximun size
+                            p.size += value * (p.deltaSize / 10);
+                        }
+                        if (value == 1) {
+                            // Food is normal
+                            Mix_PlayChannel(EAT, sounds[EAT], 0);
+                        }
+                        if (value == 2) {
+                            // Food is special
+                            Mix_PlayChannel(SPECIAL_FOOD, sounds[SPECIAL_FOOD], 0);
+                            p.pow = 1; // Set Pac Man to be Powerfull! He can now eat the ghosts
+                            p.startOfPower = clock();
+                            p.size += (p.maxSize - p.minSize) / 1.75;
+                            // Compensate for change in size
+                            p.x -= (p.maxSize - p.minSize) / 2;
+                            p.y -= (p.maxSize - p.minSize) / 2;
+                            if (p.size > (p.maxSize) * 1.5) {
+                                p.size = (p.maxSize) * 1.5;
+                            }
+                            plan.isColorful = 1;
+
+                            // Change ghosts' state to frightened
+                            for (int i = 0; i < numGhosts; i++) {
+                                if (g[i].state != 3) {
+                                    g[i].state = 2; // Change state to frightened if not eaten or already frightened
+                                    g[i].startOfFright = clock();
+                                    g[i].speed = g[i].frightSpeed;
+                                    reverseDirection(&g[i], plan);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (p.pow == 0 && p.size > p.maxSize) { // If no more powerfull and giga size, reduce size
+                    p.size -= 0.01;
+                    // Compensate for change in size
+                    p.x += 0.01 / 2;
+                    p.y += 0.01 / 2;
+                }
+
+                // Stop plan colorful before end of fright (end of power up)
+                if (p.pow && clock() - g[0].startOfFright > g[0].frightTime - 1000) {
+                    plan.isColorful = 0;
+                    p.pow = 0;
+                    Mix_HaltChannel(SPECIAL_FOOD);
+                }
+
+                if (
+                    SDL_IntersectFRect(&p.rect, &plan.self[i][j].rect, &inter) && (inter.w * inter.h) > (inter1.w * inter1.h)
+                    // If pac intersects with another rect more than its position rect
+                    // set a that rect as new position
+                ) {
+                    p.pos = plan.self[i][j];
+                    // printf("%d %d\n", i, j);
+                    return;
+                }
+            }
+        }
+    }
+}
+
+void handleGhostPacCollisions(int numGhosts) {
+    // Handling collisions between Pac man and ghosts
+    SDL_FRect inter; // These rects will be used to store intersections
+    SDL_bool shouldStopAlarm = SDL_TRUE; // We should stop the alarm sound if no ghost is in eaten mode
+    for (int i = 0; i < numGhosts; i++) {
+        if (!Mix_Playing(DIE))
+            if (SDL_IntersectFRect(&p.rect, &g[i].rect, &inter)) {
+                // If Pac Man and ghost intersect
+
+                if (g[i].state == 2) {
+                    // If in frightened mode get into eaten mode
+                    Mix_PlayChannel(GHOST_EATEN, sounds[GHOST_EATEN], 0);
+                    g[i].state = 3;
+                    g[i].speed = g[i].eatenSpeed;
+                    p.score += 200;
+                    PlayingScore += 200;
+                    p.hasEatenGhost = 1;
+                    continue;
+                }
+                if (g[i].state == 0 || g[i].state == 1) {
+                    // If in scatter or chase mode
+                    float intersection_area = inter.w * inter.h;
+                    float PacMan_area = p.rect.w * p.rect.h;
+                    // Check if PacMan and ghost intersect enough and that the ghost is not just from bitting PacMan (Iterations occur really fast you know)
+                    if (intersection_area > PacMan_area / 3 && clock() - g[i].lastTimeHit > (g[i].size / g[i].speed) * 500) {
+                        p.size -= p.deltaSize / 2; // Reduce Pac Man's size by deltasize
+                        p.score -= 50;
+                        PlayingScore -= 50;
+                        if (p.score < 0)
+                            p.score = 0;
+                            
+						if (PlayingScore < 0)
+      					PlayingScore = 0;
+
+                        // printf("Score %d", p.score); // update score button
+                        // Ajust positon to compensate for change in size
+                        p.x += p.deltaSize / 2;
+                        p.y += p.deltaSize / 2;
+                        Mix_PlayChannel(HURT, sounds[HURT], 0); // Play hurt sound
+
+                        // Death of pac Man
+                        if (p.size < p.minSize) {
+//                        start = 2;
+                            p.lives = p.lives - 1;
+                            PlayingScore = (double)p.score;
+                            printf("lives %d", p.lives);
+
+
+
+                            // If size Pac Man is too small he dies
+                            Mix_PlayChannel(DIE, sounds[DIE], 0); // Play die sound
+
+//                        while (Mix_Playing(DIE)) {} // Wait until end of die sound
+
+                        }
+                        if (p.lives <= 0) {
+                            playing = 0;
+                        }
+                        g[i].lastTimeHit = clock(); // Set that it is now that this ghost last bit Pac Man
+                    }
+                }
+            }
+        if (g[i].state == 3) {
+            shouldStopAlarm = SDL_FALSE;
+        }
+    }
+    if (shouldStopAlarm) {
+        Mix_HaltChannel(ALARM);
+    }
+}
 
 void checkEvents(int numGhosts) {
     /*
     This funtion:
-    	 - Manages keyboard events
-    	 - Manages most interactions with between Pac Man and Ghosts when they collide (Other functionalities are in the ghost functions)
-    	 - Updates the cell which represents the position of Pac Man in the game maze
-    	 - Manages interactions with between Pac Man and food
+         - Manages keyboard events
+         - Manages most interactions with between Pac Man and Ghosts when they collide (Other functionalities are in the ghost functions)
+         - Updates the cell which represents the position of Pac Man in the game maze
+         - Manages interactions with between Pac Man and food
     */
 
-    while (SDL_PollEvent(&event)) { // Manage keyboard events
+    while (SDL_PollEvent(&event)) {
+        // Manage keyboard events
         if (event.type == SDL_QUIT) {
-            quit = 1;
+            Global_quit = 1;
+            got_out_menu = 1;
             break;
         }
-        // Handle arrow key releases
-//        if (event.type == SDL_KEYUP) {
-//            if (event.key.keysym.sym == SDLK_LEFT) {
-//                p.movingLeft = 0;
-//            }
-//            if (event.key.keysym.sym == SDLK_RIGHT) {
-//                p.movingRight = 0;
-//            }
-//            if (event.key.keysym.sym == SDLK_UP) {
-//                p.movingUp = 0;
-//            }
-//            if (event.key.keysym.sym == SDLK_DOWN) {
-//                p.movingDown = 0;
-//            }
-//        }
+//         Handle arrow key releases
+//                if (event.type == SDL_KEYUP) {
+//                    if (event.key.keysym.sym == SDLK_LEFT) {
+//                        p.movingLeft = 0;
+//                    }
+//                    if (event.key.keysym.sym == SDLK_RIGHT) {
+//                        p.movingRight = 0;
+//                    }
+//                    if (event.key.keysym.sym == SDLK_UP) {
+//                        p.movingUp = 0;
+//                    }
+//                    if (event.key.keysym.sym == SDLK_DOWN) {
+//                        p.movingDown = 0;
+//                    }
+//                }
 
         // Handle arrow key presses
         if (event.type == SDL_KEYDOWN) {
@@ -548,145 +911,50 @@ void checkEvents(int numGhosts) {
                 p.movingDown = 1;
                 p.direction = 2;
             }
+            if (event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_DOWN) {
+                if (pause) {
+                    pauseOption = pauseOption == 1 ? 0 : 1;
+                }
+            }
+
+            // Pause Menu
+            if (event.key.keysym.sym == SDLK_RETURN) {
+                if (pause) {
+                    if (pauseOption == 0) {
+                        pause = 0;
+                    } else {
+                        playing = 0;
+                        got_out_menu = 1;
+                    }
+                }
+            }
+
+            // Toggle pause on SPACE
             if (event.key.keysym.sym == SDLK_SPACE) {
                 pause = pause == 1 ? 0 : 1;
+                pauseOption = 0;
             }
         }
     }
 
-    SDL_Rect inter;  // These rects will be used to store intersections
-    SDL_Rect inter1; // between some other rects
-    SDL_IntersectRect(&p.rect, &p.pos.rect, &inter1);
-    // Update pac position cell
-    for (int i = 0; i < plan.sizeX; i++) {
-        for (int j = 0; j < plan.sizeY; j++) {
-            // Go through the maze and find the cell which intersects the most with Pac Man
-            // That cell will be set as Pac Man's poition
-
-            if (abs(p.pos.index.i - i) < 2 && abs(p.pos.index.j - j) < 2) {
-                for (int k = 0; k < 5; k++) { // Manage interactions between the 5 foods which may be on a cell
-                    if ((plan.self[i][j].foods[k] != 0 && SDL_HasIntersection(&p.rect, &plan.self[i][j].foodrects[k]))) {
-                        int value;
-                        plan.numFoods--;
-                        value = plan.self[i][j].foods[k]; // Value of the food
-                        p.score += value * 10;
-                        plan.self[i][j].foods[k] = 0; // Say there is no more food in the cell
-
-                        if (p.size < p.maxSize) { // Prevents the size from exceeding the maximun size
-                            p.size += value * (p.deltaSize / 10);
-                        }
-                        if (value == 1) { // Food is normal
-                            Mix_PlayChannel(EAT, sounds[EAT], 0);
-                        }
-                        if (value == 2) { // Food is special
-                            Mix_PlayChannel(SPECIAL_FOOD, sounds[SPECIAL_FOOD], 0);
-                            p.pow = 1; // Set Pac Man to be Powerfull! He can now eat the ghosts
-                            p.startOfPower = clock();
-                            p.size += (p.maxSize - p.minSize) / 1.75;
-                            // Compensate for change in size
-                            p.x -= (p.maxSize - p.minSize) / 2;
-                            p.y -= (p.maxSize - p.minSize) / 2;
-                            if (p.size > (p.maxSize) * 1.5) {
-                                p.size = (p.maxSize) * 1.5;
-                            }
-                            plan.isColorful = 1;
-                            for (int i = 0; i < numGhosts; i++) {
-                                if (g[i].state != 3) {
-                                    g[i].state = 2; // Change state to frightened if not eaten or already frightened
-                                    g[i].startOfFright = clock();
-                                    g[i].speed = g[i].frightSpeed;
-                                    reverseDirection(&g[i], plan);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (p.pow == 0 && p.size > p.maxSize) {
-                p.size -= 0.001;
-                // Compensate for change in size
-                p.x += 0.001 / 2;
-                p.y += 0.001 / 2;
-            }
-
-            // Stop plan colorful before end of fright (end of power up)
-            if (p.pow && clock() - g[0].startOfFright > g[0].frightTime - 1000) {
-                plan.isColorful = 0;
-                p.pow = 0;
-                Mix_HaltChannel(SPECIAL_FOOD);
-            }
-
-            if (
-                SDL_IntersectRect(&p.rect, &plan.self[i][j].rect, &inter)
-                && (inter.w * inter.h) > (inter1.w * inter1.h)
-                // If pac intersects with another rect more than its position rect
-                // set a that rect as new position
-            ) {
-                p.pos = plan.self[i][j];
-                // printf("%d %d\n", i, j);
-                goto end;
-            }
-        }
-    }
-end:
-    // Handling collisions between Pac man and ghosts
-    for (int i = 0; i < numGhosts; i++) {
-        if (SDL_IntersectRect(&p.rect, &g[i].rect, &inter)) { // If Pac Man and ghost intersect
-            if (g[i].state == 2) {// If in frightened mode get into eaten mode
-                Mix_PlayChannel(GHOST_EATEN, sounds[GHOST_EATEN], 0);
-                g[i].state = 3;
-                g[i].speed = g[i].eatenSpeed;
-                p.score += 200;
-                p.hasEatenGhost = 1;
-                // printf("Score %d", p.score); // update score button
-//				g[i].size = g[i].eatenSize;
-
-                // Ajust position of ghost to compensate for reduction in size
-//                g[i].x = g[i].pos.rect.x + g[i].pos.rect.w / 2 - g[i].size / 2;
-//                g[i].y = g[i].pos.rect.y + g[i].pos.rect.h / 2 - g[i].size * 1.2 / 2;
-                continue;
-            }
-            if (g[i].state == 0 || g[i].state == 1) { // If in scatter or chase mode
-                float intersection_area = inter.w * inter.h;
-                float PacMan_area = p.rect.w * p.rect.h;
-                // Check if PacMan and ghost intersect enough and that the ghost is not just from bitting PacMan (Iterations occur really fast you know)
-                if (intersection_area > PacMan_area / 4 && clock() - g[i].lastTimeHit > (g[i].size / g[i].speed) * 1000) {
-                    p.size -= p.deltaSize; // Reduce Pac Man's size by deltasize
-                    p.score -= 50;
-                    if (p.score < 0) p.score = 0;
-
-                    // printf("Score %d", p.score); // update score button
-                    // Ajust positon to compensate for change in size
-                    p.x += p.deltaSize / 2;
-                    p.y += p.deltaSize / 2;
-                    Mix_PlayChannel(HURT, sounds[HURT], 0); // Play hurt sound
-
-                    if (p.size < p.minSize) { // If size Pac Man is too small he dies
-                        Mix_PlayChannel(DIE, sounds[DIE], 0); // Play die sound
-                        quit = 1;
-                    }
-                    g[i].lastTimeHit = clock(); // Set that it is now that this ghost last bit Pac Man
-                }
-            }
-        }
+    if (!pause) {
+        handlePacMazeInteractions(numGhosts);
+        handleGhostPacCollisions(numGhosts);
     }
 }
-
-
-
 int initSDL() {
     // Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) { // If SDL_Init did not return 0 (i.e. it failed)
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        // If SDL_Init did not return 0 (i.e. it failed)
         // printf("Error initializing SDL: %s\n", SDL_GetError());
         return 1;
     }
     // printf("SDL initialized\n");
 
-
     // Create a window
-    window = SDL_CreateWindow("Pac test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_RESIZABLE);
-    if (!window) { // If window has not been created
+    window = SDL_CreateWindow("!? Pac Man ?!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_RESIZABLE);
+    if (!window) {
+        // If window has not been created
         // printf("Error creating window: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
@@ -694,12 +962,14 @@ int initSDL() {
 
     // Create a renderer
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (!renderer) { // If renderer has not been created
+    if (!renderer) {
+        // If renderer has not been created
         // printf("Error creating renderer: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
     }
+    SDL_RenderSetLogicalSize(renderer, 1400, 1000);
 
     // Initialize SDL_Mixer
     TTF_Init();
@@ -707,25 +977,54 @@ int initSDL() {
     Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, MIX_DEFAULT_CHANNELS, 1024);
     Mix_AllocateChannels(NUM_CHANNELS);
     // Load sound
-    sounds[STAGE_MUSIC] = Mix_LoadWAV("sounds/Demon_Slayer.mp3");
-    Mix_VolumeChunk(sounds[STAGE_MUSIC], 30);
+    sounds[TRACK0] = Mix_LoadWAV("sounds/lvl7.mp3");
+    Mix_VolumeChunk(sounds[TRACK0], 30);
+    sounds[TRACK1] = Mix_LoadWAV("sounds/lvl1.mp3");
+    Mix_VolumeChunk(sounds[TRACK1], 30);
+    sounds[TRACK2] = Mix_LoadWAV("sounds/lvl2.mp3");
+    Mix_VolumeChunk(sounds[TRACK2], 30);
+    sounds[TRACK3] = Mix_LoadWAV("sounds/lvl3.mp3");
+    Mix_VolumeChunk(sounds[TRACK3], 30);
+    sounds[TRACK4] = Mix_LoadWAV("sounds/lvl4.mp3");
+    Mix_VolumeChunk(sounds[TRACK4], 30);
+    sounds[TRACK5] = Mix_LoadWAV("sounds/lvl5.mp3");
+    Mix_VolumeChunk(sounds[TRACK5], 30);
+    sounds[TRACK6] = Mix_LoadWAV("sounds/lvl6.mp3");
+    Mix_VolumeChunk(sounds[TRACK6], 30);
+
+    sounds[STAGE_CLEAR] = Mix_LoadWAV("sounds/Stage Clear.mp3");
+    Mix_VolumeChunk(sounds[STAGE_CLEAR], 70);
+    sounds[STAGE_SELECT] = Mix_LoadWAV("sounds/Stage Select.mp3");
+    Mix_VolumeChunk(sounds[STAGE_SELECT], 30);
+
     sounds[EAT] = Mix_LoadWAV("sounds/Chomp High2.mp3");
     Mix_VolumeChunk(sounds[EAT], 25);
     sounds[BG1] = Mix_LoadWAV("sounds/Background 1.mp3");
-    Mix_VolumeChunk(sounds[BG1], 35);
+    Mix_VolumeChunk(sounds[BG1], 50);
     sounds[HURT] = Mix_LoadWAV("sounds/Jump117.wav");
     Mix_VolumeChunk(sounds[HURT], 50);
     sounds[SPECIAL_FOOD] = Mix_LoadWAV("sounds/The super saiyan aura Sound and video.mp3");
     Mix_VolumeChunk(sounds[SPECIAL_FOOD], 120);
     sounds[DIE] = Mix_LoadWAV("sounds/Death.mp3");
     Mix_VolumeChunk(sounds[DIE], 80);
-    sounds[GHOST_EATEN] = Mix_LoadWAV("sounds/Tagne.mp3");
-    Mix_VolumeChunk(sounds[GHOST_EATEN], 127);
+    sounds[GHOST_EATEN] = Mix_LoadWAV("sounds/creature-cry-of-hurt.wav");
+    Mix_VolumeChunk(sounds[GHOST_EATEN], 70);
     sounds[CLICK] = sounds[EAT];
     sounds[MAIN_MENU] = Mix_LoadWAV("sounds/Nicky_Larson.mp3");
     Mix_VolumeChunk(sounds[MAIN_MENU], 80);
-    sounds[WIN_LEVEL] = Mix_LoadWAV("sounds/mixkit-game-bonus-reached-2065.wav");
+    sounds[ALARM] = Mix_LoadWAV("sounds/Alarm.mp3");
+    Mix_VolumeChunk(sounds[ALARM], 120);
+    sounds[BEGIN] = Mix_LoadWAV("sounds/Start.mp3");
+    Mix_VolumeChunk(sounds[BEGIN], 100);
+    sounds[COIN] = Mix_LoadWAV("sounds/coin.mp3");
+    sounds[TYPE] = Mix_LoadWAV("sounds/type.mp3");
+    Mix_VolumeChunk(sounds[TYPE], 120);
+    sounds[FAIL_LEVEL] = Mix_LoadWAV("sounds/mixkit-player-losing-or-failing-2042.wav");
+    sounds[LEADERBOARDS] = Mix_LoadWAV("sounds/LeaderBoards.mp3");
+    sounds[NAME_ENTRY] = Mix_LoadWAV("sounds/Name Entry (1st).mp3");
 
+    void (*func_pointer)(int) = callBackForChannels;
+    Mix_ChannelFinished(func_pointer);
 
     SDL_Color txtcol = {255, 255, 25, 0};
     char txt[10];
@@ -740,188 +1039,61 @@ int initSDL() {
     return 0;
 }
 
-
-void createButtonTexture(button* b) {
-    /*
-    This function is responsible for loading a font file and creating a texture for the button passed as parameter
-    */
-
-    TTF_Font* font = TTF_OpenFont(b->fontDirectory, b->fontSize); // open font file with specific fontSize
-    if (font == NULL) { // Error handling
-        // printf("\nError opening font file at %s", b->fontDirectory);
-    }
-    SDL_Surface* surface = TTF_RenderUTF8_Blended(font, b->text, b->color); //Create  surface
-    b->texture = SDL_CreateTextureFromSurface(b->renderer, surface); // Create texture
-    SDL_FreeSurface(surface); // We do not need the surface anymore
-    SDL_QueryTexture(b->texture, NULL, NULL, &b->rect.w, &b->rect.h);
-    TTF_CloseFont(font); // Close the font file
-}
-
-button newButton(SDL_Renderer* ren, char* fontDirectory, int fontSize, SDL_Color txtColor, char* txt) {
-    /*
-    Creates a new button and ruturns it
-    */
-    button b;
-    b.renderer = ren; // Set renderer
-    b.rect.x = b.rect.y = 0; // Position of rect
-    b.color = txtColor; // Set text color
-    b.fontSize = fontSize; // Set font size
-    b.fontDirectory = fontDirectory; // Directory of the font file
-    strcpy(b.text, txt); // Text on the button
-    createButtonTexture(&b); // Create a texture for the button
-    return b;
-}
-
-int drawButton(button b) { // Draw button to its screen
-    return SDL_RenderCopy(b.renderer, b.texture, NULL, &b.rect);
-}
-
-void setButtonText(button* b, char* txt, int fontSize) {
-    /*
-    Modify the text and/or font size on the button
-    */
-    strcpy(b->text, txt);;
-    b->fontSize = fontSize;
-    createButtonTexture(b);
-}
-
-
-SDL_Window* win; // Window pointer for our game
-SDL_Renderer* ren; // Renderer pointer for our game
-
-
-menu newMenu(SDL_Renderer* ren,
-             char *menuTitle,
-             char **menutext, int numOptions,
-             int fontSize, int indent, int mx,
-             int my, SDL_Color seleColor, SDL_Color idleColor,
-             int bg_channel,
-             Mix_Chunk* bg_sound, int click_channel,
-             Mix_Chunk* clickSound) {
-    /*
-    Creates a new button and ruturns it
-    */
-    menu m;
-    m.menutext = menutext; // Array of strings which are the menu options
-    m.numOptions = numOptions; // Number of options
-    m.mx = mx; // x position of the menu title button
-    m.my = my; // y position of the menu title button
-    m.bg_Channel = bg_channel; // Channel of the background music
-    m.bgSound = bg_sound; // Back ground music to be playing while in menu
-    m.click_channel = click_channel; // Channel of the click sound effect
-    m.clickSound = clickSound; // Click sound of the menu
-    m.renderer = ren; // Renderer on which to draw the buttons
-    m.menuTitle = menuTitle; // Taxt for the menu title
-    m.fontSize = fontSize; // Font size of the menu options (That of the title will be a multiple of it)
-    m.indent = indent; // Indentation of the menu options with respect to the menu title
-    m.seleColor = seleColor; // Color of the highlighted optionin the menu
-    m.idleColor = idleColor; // Color of other options in the menu
-
-    // Allocate mamory to store the menu options' buttons
-    m.menuButtons = (button*)malloc(m.numOptions * sizeof(button));
-
-    return m; // return the menu created
-}
-
-
-int showMenu(menu m) {
-    /*
-    This functions indefinitely displays the menu passed as parameter until a choice is made
-    */
-    int isrunning = 1;
-    int choice = 0; // A number which represents the highlighted option in the menu
-    // By default is first option
-    SDL_Event menuEvent;
-    void checkMenuEvents() { // Manage key presses in the menu
-        while (SDL_PollEvent(&menuEvent)) {
-            if (menuEvent.type == SDL_QUIT) {
-                isrunning = 0;
-                choice = m.numOptions - 1;
-                break;
-            }
-            if (menuEvent.type == SDL_KEYDOWN) {
-                if (menuEvent.key.keysym.sym == SDLK_DOWN) { // If up key is pressed
-                    choice++;
-                    if (choice == m.numOptions) {
-                        choice = 0;
-                    }
-                }
-                if (menuEvent.key.keysym.sym == SDLK_UP) { // If down key is pressed
-                    choice--;
-                    if (choice == -1) {
-                        choice = m.numOptions - 1;
-                    }
-                }
-                if (menuEvent.key.keysym.sym == SDLK_RETURN) { // If an option is selected
-                    isrunning = 0;
-                    Mix_HaltChannel(m.bg_Channel); // Stop the backgroung music
-                }
-                Mix_PlayChannel(m.click_channel, m.clickSound, 0); // Play the click sound
-            }
-            if (menuEvent.type == SDL_MOUSEMOTION) {
-                SDL_Point mouse;
-                SDL_GetMouseState(&mouse.x, &mouse.y);
-                for (int i = 0; i < m.numOptions; i++) {
-                    if (SDL_PointInRect(&mouse, &m.menuButtons[i].rect)) {
-                        choice = i;
-                    }
-                }
-            }
-        }
-    }
-    // Play the background music indefinitely
-    Mix_PlayChannel(m.bg_Channel, m.bgSound, -1);
-    while (isrunning) {
-        checkMenuEvents();
-        // Set bg color and fill the screen with it
-        SDL_SetRenderDrawColor(m.renderer, 0, 0, 30, 0);
-        SDL_RenderClear(m.renderer);
-
-        // Create the menu title button fron a font
-        m.menuTitleButton = newButton(m.renderer, "fonts/Crackman.otf", m.fontSize * 2, m.seleColor, m.menuTitle);
-        // Create a button for each option in menu
-        for (int i = 0; i < m.numOptions; i++) {
-            if (i == choice) { // If button is the highlighed button, create it with special font
-                m.menuButtons[i] = newButton(m.renderer, "fonts/Crackman.otf", m.fontSize, m.seleColor, m.menutext[i]);
-                continue;
-            }
-            m.menuButtons[i] = newButton(m.renderer, "fonts/Crackman Back.otf", m.fontSize, m.idleColor, m.menutext[i]);
-        }
-        // Set menu title's position
-        m.menuTitleButton.rect.x = m.mx;
-        m.menuTitleButton.rect.y = m.my;
-        // Set menu options' positions and draw them
-        for (int i = 0; i < m.numOptions; i++) {
-            m.menuButtons[i].rect.x = m.mx + m.indent;
-            if (i == choice) { // If button is highlighted, indent it by 20 pixels
-                m.menuButtons[i].rect.x += 20;
-            }
-            m.menuButtons[i].rect.y += i * m.menuButtons[i].rect.h + m.menuTitleButton.rect.h * 2;
-            drawButton(m.menuButtons[i]); // Draw the button to the renderer
-            SDL_DestroyTexture(m.menuButtons[i].texture); // Destroy the button texture. Another one will be created at next iteration
-        }
-        drawButton(m.menuTitleButton);
-        SDL_DestroyTexture(m.menuTitleButton.texture); // Destroy menu title button
-        SDL_RenderPresent(m.renderer); // Show the renderer
-        SDL_Delay(50); // Little optional delay
-    }
-    return choice; // Return position of the highlighted option
-}
-
 void printScore(button digits[20], int num, int x, int y) {
     int number[20];
     int d = 0;
     int i = 0;
-    while (num != -1 && d < 20) { // The digits of num in reverse order
+    while (num != -1 && d < 20) {
+        // The digits of num in reverse order
         number[i] = num % 10;
         num /= 10;
         d++;
         i++;
-        if (num == 0)num = -1;
+        if (num == 0)
+            num = -1;
     }
-    for (int i = d - 1; i >= 0; i--) { // Set the position and draw the corresponding buttons
+    for (int i = d - 1; i >= 0; i--) {
+        // Set the position and draw the corresponding buttons
         digits[number[i]].rect.x = x + (d - 1 - i) * digits[number[i]].rect.w;
         digits[number[i]].rect.y = y;
         drawButton(digits[number[i]]);
+    }
+}
+
+void callBackForChannels(int channel) {
+    if (DIE == channel) {
+        start = 2;
+
+        if (p.lives > 0) {
+            // Set pac position to bottom square in grid
+            p.pos = plan.self[plan.sizeX / 2 - 1][plan.sizeY - 3];
+            p.x = p.pos.rect.x + 5;
+            p.y = p.pos.rect.y + 5;
+            p.size = p.maxSize;
+            for (int i = 0; i < 5; i++) {
+                p.pos.foods[i] = 0;
+            }
+            p.size = p.maxSize;
+        } else {
+            Mix_PlayChannel(FAIL_LEVEL, sounds[FAIL_LEVEL], 0);
+            SDL_Delay(1000);
+        }
+        // Set ghost position in grid
+        for (int i = 0; i < 4; i++) {
+//            drawGhost(&g[i]);
+            g[i].pos = plan.self[(int)((plan.sizeX) / 2 - (i % 4) % 2)][(int)((plan.sizeY / 2))];
+            g[i].x = g[i].pos.rect.x + g[i].pos.rect.w / 2 - g[i].rect.w / 2 + (i % 4 - 1) * g[i].size;
+            g[i].y = g[i].pos.rect.y + g[i].pos.rect.h / 2 - g[i].rect.h / 2;
+
+            if (i % 2) {
+                g[i].immediateDest.i = g[i].pos.index.i + 1;
+                g[i].immediateDest.j = g[i].pos.index.j;
+            } else {
+                g[i].immediateDest.i = g[i].pos.index.i - 1;
+                g[i].immediateDest.j = g[i].pos.index.j;
+            }
+        }
+        printf("\n Entered call back Function!\n");
+
     }
 }

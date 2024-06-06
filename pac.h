@@ -5,6 +5,7 @@
 #include <conio.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+
 #include <maze.h>
 
 
@@ -17,10 +18,13 @@ typedef struct pac {
     int numOfFrames;
     int pow;
     int startOfPower;
+    Uint8 lives;
+    Uint8 lvl;
 
     double size;
     double minSize;
     double deltaSize;
+    double damageFactor;
     double maxSize;
     int score;
     int hasEatenGhost;
@@ -29,6 +33,7 @@ typedef struct pac {
     int movingRight;
     int movingDown;
     int movingUp;
+
     double angle;
     double targetAngle;
     int direction;
@@ -39,16 +44,18 @@ typedef struct pac {
     SDL_Window* window;
     SDL_Renderer* renderer;
     SDL_Texture** Textures;
-    SDL_Rect rect;
+    SDL_FRect rect;
     cell pos;
 } pac;
 
 int drawPac(pac* p);
 
-int initPac(pac* p, int size, SDL_Window* window, SDL_Renderer* renderer, int lvl) {
+int initPac(pac* p, double size, SDL_Window* window, SDL_Renderer* renderer, int lvl) {
     // Inherit window and renderer
     p->renderer = renderer;
     p->window = window;
+    p->lives = 3;
+    p->lvl = lvl;
 
     // Set time
     p->then = clock();
@@ -71,8 +78,8 @@ int initPac(pac* p, int size, SDL_Window* window, SDL_Renderer* renderer, int lv
     // Set size
     p->maxSize = size;
     p->size = p->maxSize;
-    p->minSize = p->size / 2.5;
-    p->deltaSize = (p->maxSize - p->minSize) / (15 - lvl/3);
+    p->minSize = p->size * 0.5;
+    p->deltaSize = (p->maxSize - p->minSize) / (15 - lvl / 3);
     p->score = 0;
     p->hasEatenGhost = 0;
 
@@ -124,8 +131,8 @@ int updatePacPos(pac* p, plane plan) {
     // Calculate time elapsed since last update
     double dt = (double)((clock() - p->then) / ((double)(CLOCKS_PER_SEC)));
     p->then = clock();
-    if (dt > 0.008) {
-        dt = 0.008;
+    if (dt > 0.01) {
+        dt = 0.01;
     }
 
     int left = p->rect.x;
@@ -153,10 +160,10 @@ int updatePacPos(pac* p, plane plan) {
     // Permit walking pass the wall if it is the left portal
     if (p->pos.index.i == 0 && p->pos.index.j == plan.sizeY / 2) {
         leftLimit -= 50;
-        SDL_Rect portal = {.x = p->pos.rect.x - plan.cellSpacing, .y = p->pos.rect.y, .w = plan.cellSpacing / 2, .h = plan.cellSize};
+        SDL_FRect portal = {.x = (float)(p->pos.rect.x - plan.cellSpacing), .y = (float)p->pos.rect.y, .w = (float)(plan.cellSpacing / 2), .h = (float)plan.cellSize};
         SDL_SetRenderDrawColor(p->renderer, 255, 140, 255, 0);
-        SDL_RenderFillRect(p->renderer, &portal);
-        if (SDL_HasIntersection(&p->rect, &portal)) {
+        SDL_RenderFillRectF(p->renderer, &portal);
+        if (SDL_HasIntersectionF(&p->rect, &portal)) {
             p->pos = plan.self[plan.sizeX - 1][plan.sizeY / 2];
             p->x = p->pos.rect.x + p->pos.rect.w - p->size + plan.cellSpacing / 2 - 2;
             p->y = p->pos.y + p->pos.rect.h / 2 - p->size / 2;
@@ -165,17 +172,17 @@ int updatePacPos(pac* p, plane plan) {
     // Permit walking pass the wall if it is the right portal
     if (p->pos.index.i == plan.sizeX - 1 && p->pos.index.j == plan.sizeY / 2) {
         rightLimit += 50;
-        SDL_Rect portal = {.x = p->pos.rect.x + p->pos.rect.w + plan.cellSpacing / 2, .y = p->pos.rect.y, .w = plan.cellSpacing / 2, .h = plan.cellSize};
+        SDL_FRect portal = {.x = (float)(p->pos.rect.x + p->pos.rect.w + plan.cellSpacing / 2), .y = (float)p->pos.rect.y, .w = (float)(plan.cellSpacing / 2), .h = (float)plan.cellSize};
         SDL_SetRenderDrawColor(p->renderer, 140, 255, 255, 0);
-        SDL_RenderFillRect(p->renderer, &portal);
-        if (SDL_HasIntersection(&p->rect, &portal)) {
+        SDL_RenderFillRectF(p->renderer, &portal);
+        if (SDL_HasIntersectionF(&p->rect, &portal)) {
             p->pos = plan.self[0][plan.sizeY / 2];
             p->x = p->pos.x - p->pos.spacing / 2 + 2;
             p->y = p->pos.y + p->pos.rect.h / 2 - p->size / 2;
         }
     }
 
-    // Set orientation and Update y and x attributes
+    // Update y and x attributes
     if (p->movingLeft && left - dt * p->speed > leftLimit) {
         p->x -= dt * p->speed;
     } else if (p->movingRight && right + dt * p->speed < rightLimit) {
@@ -237,9 +244,9 @@ int updatePacPos(pac* p, plane plan) {
 
 int drawPac(pac* p) {
     updatePacFrame(p);
-    SDL_Rect characterRect = { (int)p->x, (int)p->y, (int)p->size, (int)p->size};
+    SDL_FRect characterRect = { (float)p->x, (float)p->y, (float)p->size, (float)p->size};
     p->rect = characterRect;
-    SDL_RenderCopyEx(p->renderer, p->Textures[p->frame], NULL, &characterRect, p->angle, NULL, SDL_FLIP_NONE);
+    SDL_RenderCopyExF(p->renderer, p->Textures[p->frame], NULL, &characterRect, p->angle, NULL, SDL_FLIP_NONE);
 //	SDL_RenderCopy(p->renderer, p->Textures[p->frame], NULL, &characterRect);
     return 0;
 }
@@ -289,13 +296,15 @@ typedef struct Ghost {
     SDL_Texture** frightTextures;
     SDL_Texture* eyeTexture;
     SDL_Texture* eatenTexture;
-    SDL_Rect rect;
+    SDL_FRect rect;
     cell pos;
     cell target;
     coord immediateDest;
 } Ghost;
 
-int initGhost(Ghost *g, int size,  SDL_Window* window, SDL_Renderer* renderer, int numGhosts, int level) {
+int drawGhost(Ghost* g);
+
+int initGhost(Ghost *g, double size,  SDL_Window* window, SDL_Renderer* renderer, int numGhosts, int level, plane plan, pac p) {
     // Inherit window and renderer
     for (int i = 0; i < numGhosts; i++) {
 //		g[i] = (Ghost*)malloc(sizeof(Ghost));
@@ -304,9 +313,9 @@ int initGhost(Ghost *g, int size,  SDL_Window* window, SDL_Renderer* renderer, i
         g[i].lastTimeHit = clock();
         g[i].startOfscatter = clock();
         g[i].startOfchase = clock();
-        g[i].scatterTime = 15000 - 1000*level;
+        g[i].scatterTime = 15000 - 1000 * level;
         g[i].chaseTime = 30000;
-        g[i].frightTime = 9000 - 500*level;
+        g[i].frightTime = 9000 - 250 * level;
 
 
         // Set time
@@ -338,10 +347,10 @@ int initGhost(Ghost *g, int size,  SDL_Window* window, SDL_Renderer* renderer, i
         g[i].eatenSize = g[i].size / 2;
 
         // Set number of frames and first frame
-        g[i].numOfFrames = 2;
+        g[i].numOfFrames = 4;
         g[i].frame = 0;
 
-        SDL_Rect r = {(int)g[i].x, (int)g[i].y, (int)g[i].size, (int)(g[i].size * 1.15) };
+        SDL_FRect r = {(float)g[i].x, (float)g[i].y, (float)g[i].size, (float)(g[i].size * 1.15) };
         g[i].rect = r;
 
         // Create surfaces for images to be loaded on
@@ -353,7 +362,7 @@ int initGhost(Ghost *g, int size,  SDL_Window* window, SDL_Renderer* renderer, i
         // Load images and create textures
 
         for (int j = 0; j < g[i].numOfFrames; j++) {
-            sprintf(fileDirectory, "images/Ghost%d%d.png", i>3?i%5:g[i].type, j);
+            sprintf(fileDirectory, "images/Ghost%d%d.png", i > 3 ? i % 5 : g[i].type, j);
             // Load an image (replace with your own image path)
             characterSurfaces[j] = IMG_Load(fileDirectory);
 
@@ -377,6 +386,30 @@ int initGhost(Ghost *g, int size,  SDL_Window* window, SDL_Renderer* renderer, i
             g[i].eyeTexture = SDL_CreateTextureFromSurface(renderer, characterSurfaces[j]);
             SDL_FreeSurface(characterSurfaces[j]); // We do not need the surface anymore
         }
+        // Set ghost position in grid
+        double gspeed;
+        drawGhost(&g[i]);
+        g[i].pos = plan.self[(int)((plan.sizeX) / 2 - (i % 4) % 2)][(int)((plan.sizeY / 2))];
+        g[i].x = g[i].pos.rect.x + g[i].pos.rect.w / 2 - g[i].rect.w / 2 + (i % 4 - 1) * g[i].size;
+        g[i].y = g[i].pos.rect.y + g[i].pos.rect.h / 2 - g[i].rect.h / 2;
+        if (level > 8) {
+            gspeed = p.speed * 0.90;
+        } else {
+            gspeed = (0.7 + level * 0.03) * p.speed;
+        }
+        g[i].speed = gspeed;
+        g[i].eatenSpeed = g[i].speed * 3;
+        g[i].eatenSize = g[i].size / 2;
+        g[i].frightSpeed = g[i].speed * 0.8;
+        g[i].normalSize = g[i].size;
+        g[i].normalSpeed = g[i].speed;
+        if (i % 2) {
+            g[i].immediateDest.i = g[i].pos.index.i + 1;
+            g[i].immediateDest.j = g[i].pos.index.j;
+        } else {
+            g[i].immediateDest.i = g[i].pos.index.i - 1;
+            g[i].immediateDest.j = g[i].pos.index.j;
+        }
     }
     return 0;
 }
@@ -384,7 +417,7 @@ int initGhost(Ghost *g, int size,  SDL_Window* window, SDL_Renderer* renderer, i
 
 void updateGhostFrame(Ghost* g) {
     // Change the frame
-    if ((g->now - g->lastFrameSwap) > 166) {
+    if ((g->now - g->lastFrameSwap) > 100) {
         g->frame++;
         g->lastFrameSwap = clock();
     }
@@ -544,6 +577,12 @@ void changeGhostDestination(Ghost* g, plane plan, pac* p, int numGhosts) {
         int gjj = g[n].pos.index.j;
         int gi = g[n].pos.index.i;
         int gj = g[n].pos.index.j;
+
+        // Reverse direction on dead ends
+//        if(NumLinks(plan, gii, gjj) == 1){
+//			reverseDirection(&g[n], plan);
+//		}
+
         for (int i = 0; i < plan.sizeX; i++) { // Update the position cell
             for (int j = 0; j < plan.sizeY; j++) {
                 // If it's not the same position
@@ -581,6 +620,7 @@ void changeGhostDestination(Ghost* g, plane plan, pac* p, int numGhosts) {
                             g[n].state = 1;
                             g[n].speed = g[n].normalSpeed;
                             g[n].startOfchase = g[n].now;
+                            reverseDirection(&g[n], plan);
                         }
 
                         // Set target according to Pac man's position and ghost state
@@ -720,10 +760,10 @@ int updateGhostPos(Ghost* g, plane plan, coord way) {
 
     // Permit walking pass the wall if it is the left portal
     if (g->pos.index.i == 0 && g->pos.index.j == plan.sizeY / 2) {
-        SDL_Rect portal = {.x = g->pos.rect.x - plan.cellSpacing, .y = g->pos.rect.y, .w = plan.cellSpacing / 2, .h = plan.cellSize};
+        SDL_FRect portal = {.x = (float)(g->pos.rect.x - plan.cellSpacing), .y = (float)(g->pos.rect.y), .w = (float)plan.cellSpacing / 2, .h = (float)(plan.cellSize)};
         SDL_SetRenderDrawColor(g->renderer, 255, 140, 255, 0);
-        SDL_RenderFillRect(g->renderer, &portal);
-        if (SDL_HasIntersection(&g->rect, &portal)) {
+        SDL_RenderFillRectF(g->renderer, &portal);
+        if (SDL_HasIntersectionF(&g->rect, &portal)) {
             g->pos = plan.self[plan.sizeX - 1][plan.sizeY / 2];
             g->x = g->pos.rect.x + g->pos.rect.w - g->size + plan.cellSpacing / 2 - 2;
             g->y = g->pos.y + g->pos.rect.h / 2 - 1.15 * g->size / 2;
@@ -731,10 +771,10 @@ int updateGhostPos(Ghost* g, plane plan, coord way) {
     }
     // Permit walking pass the wall if it is the right portal
     if (g->pos.index.i == plan.sizeX - 1 && g->pos.index.j == plan.sizeY / 2) {
-        SDL_Rect portal = {.x = g->pos.rect.x + g->pos.rect.w + plan.cellSpacing / 2, .y = g->pos.rect.y, .w = plan.cellSpacing / 2, .h = plan.cellSize};
+        SDL_FRect portal = {.x = (float)(g->pos.rect.x + g->pos.rect.w + plan.cellSpacing / 2), .y = (float)(g->pos.rect.y), .w = (float)(plan.cellSpacing / 2), .h = (float)(plan.cellSize)};
         SDL_SetRenderDrawColor(g->renderer, 140, 255, 255, 0);
-        SDL_RenderFillRect(g->renderer, &portal);
-        if (SDL_HasIntersection(&g->rect, &portal)) {
+        SDL_RenderFillRectF(g->renderer, &portal);
+        if (SDL_HasIntersectionF(&g->rect, &portal)) {
             g->pos = plan.self[0][plan.sizeY / 2];
             g->x = g->pos.x - g->pos.spacing / 2 + 2;
             g->y = g->pos.y + g->pos.rect.h / 2 - 1.15 * g->size / 2;
@@ -744,52 +784,51 @@ int updateGhostPos(Ghost* g, plane plan, coord way) {
     return 0;
 }
 
-
 int drawGhost(Ghost* g) {
     g->now = clock();
-    SDL_Rect characterRect = { (int)g->x, (int)g->y, (int)(g->size), (int)(g->size * 1.15) };
+    SDL_FRect characterRect = { (float)g->x, (float)g->y, (float)(g->size), (float)(g->size * 1.15) };
     g->rect = characterRect;
     if (g->state != 3) { // If ghost is not eaten draw the body
         if (g->state == 2) { // If the ghost is frightened
-            SDL_RenderCopyEx(g->renderer, g->frightTextures[g->frame], NULL, &g->rect, g->angle, NULL, SDL_FLIP_NONE);
+            SDL_RenderCopyExF(g->renderer, g->frightTextures[g->frame], NULL, &g->rect, g->angle, NULL, SDL_FLIP_NONE);
         } else { // Else draw normal ghost texture
-            SDL_RenderCopyEx(g->renderer, g->Textures[g->frame], NULL, &g->rect, g->angle, NULL, SDL_FLIP_NONE);
+            SDL_RenderCopyExF(g->renderer, g->Textures[g->frame], NULL, &g->rect, g->angle, NULL, SDL_FLIP_NONE);
         }
     }
 
-    float eye_size = g->size/2.5;
-    int x = g->x + g->size * 1.0 / 4.0 - eye_size / 2 + g->size * 1.0 / 60.0;
-    int y = g->y + 1.15 * g->size * 0.33333 - eye_size / 2;
-    SDL_Rect eyeRect = { x, y, (int)(eye_size), (int)(eye_size) };
+    float eye_size = g->size / 2.5;
+    float x = g->x + g->size * 1.0 / 4.0 - eye_size / 2 + g->size * 1.0 / 60.0;
+    float y = g->y + 1.15 * g->size * 0.33333 - eye_size / 2;
+    SDL_FRect eyeRect = { x, y, (float)(eye_size), (float)(eye_size) };
     // Draw eyes in particlar orientation
     if (g->movingRight) {
-    	x += g->size * 1.0 / 30.0;
-    	eyeRect.x = x;
-        SDL_RenderCopyEx(g->renderer, g->eyeTexture, NULL, &eyeRect, g->angle, NULL, SDL_FLIP_NONE);
+        x += g->size * 1.0 / 20.0;
+        eyeRect.x = x;
+        SDL_RenderCopyExF(g->renderer, g->eyeTexture, NULL, &eyeRect, g->angle, NULL, SDL_FLIP_NONE);
         x += g->size * 2.0 / 4.0 - g->size * 1.0 / 60.0;
         eyeRect.x = x;
-        SDL_RenderCopyEx(g->renderer, g->eyeTexture, NULL, &eyeRect, g->angle, NULL, SDL_FLIP_NONE);
+        SDL_RenderCopyExF(g->renderer, g->eyeTexture, NULL, &eyeRect, g->angle, NULL, SDL_FLIP_NONE);
     } else if (g->movingLeft) {
-    	x -= g->size * 1.0 / 30.0;
-    	eyeRect.x = x;
-        SDL_RenderCopyEx(g->renderer, g->eyeTexture, NULL, &eyeRect, 180, NULL, SDL_FLIP_NONE);
+        x -= g->size * 1.0 / 30.0;
+        eyeRect.x = x;
+        SDL_RenderCopyExF(g->renderer, g->eyeTexture, NULL, &eyeRect, 180, NULL, SDL_FLIP_NONE);
         x += g->size * 2.0 / 4.0 - g->size * 1.0 / 60.0;
         eyeRect.x = x;
-        SDL_RenderCopyEx(g->renderer, g->eyeTexture, NULL, &eyeRect, 180, NULL, SDL_FLIP_NONE);
+        SDL_RenderCopyExF(g->renderer, g->eyeTexture, NULL, &eyeRect, 180, NULL, SDL_FLIP_NONE);
     } else if (g->movingUp) {
-    	y -= 1.15 * g->size * 1.0 / 30.0;
-    	eyeRect.y = y;
-        SDL_RenderCopyEx(g->renderer, g->eyeTexture, NULL, &eyeRect, -90, NULL, SDL_FLIP_NONE);
+        y -= 1.15 * g->size * 1.0 / 20.0;
+        eyeRect.y = y;
+        SDL_RenderCopyExF(g->renderer, g->eyeTexture, NULL, &eyeRect, -90, NULL, SDL_FLIP_NONE);
         x += g->size * 2.0 / 4.0 - g->size * 1.0 / 60.0;
         eyeRect.x = x;
-        SDL_RenderCopyEx(g->renderer, g->eyeTexture, NULL, &eyeRect, -90, NULL, SDL_FLIP_NONE);
+        SDL_RenderCopyExF(g->renderer, g->eyeTexture, NULL, &eyeRect, -90, NULL, SDL_FLIP_NONE);
     } else if (g->movingDown) {
-    	y += 1.15 * g->size * 1.0 / 30.0;
-    	eyeRect.y = y;
-        SDL_RenderCopyEx(g->renderer, g->eyeTexture, NULL, &eyeRect, 90, NULL, SDL_FLIP_NONE);
+        y += 1.15 * g->size * 1.0 / 20.0;
+        eyeRect.y = y;
+        SDL_RenderCopyExF(g->renderer, g->eyeTexture, NULL, &eyeRect, 90, NULL, SDL_FLIP_NONE);
         x += g->size * 2.0 / 4.0 - g->size * 1.0 / 60.0;
         eyeRect.x = x;
-        SDL_RenderCopyEx(g->renderer, g->eyeTexture, NULL, &eyeRect, 90, NULL, SDL_FLIP_NONE);
+        SDL_RenderCopyExF(g->renderer, g->eyeTexture, NULL, &eyeRect, 90, NULL, SDL_FLIP_NONE);
     }
 //	SDL_RenderCopy(g->renderer, g->Textures[g->frame], NULL, &characterRect);
     return 0;
