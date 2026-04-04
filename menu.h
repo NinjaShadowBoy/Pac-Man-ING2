@@ -6,6 +6,7 @@
 
 #include <pac.h>
 #include <button.h>
+#include "version.h"
 
 typedef struct menu {
     /*
@@ -164,6 +165,12 @@ int showMenu(menu m) {
         m.menuButtons[i][1].rect.y = m.my + i * m.menuButtons[i][0].rect.h + m.menuTitleButton.rect.h * 2;
     }
 
+    char versionTxt[64];
+    sprintf(versionTxt, "v%s", PACMAN_VERSION);
+    button versionFooter = newButton(m.renderer, "fonts/consolab.ttf", 20, m.idleColor, versionTxt);
+    versionFooter.rect.x = 20;
+    versionFooter.rect.y = 1000 - versionFooter.rect.h - 10;
+
     while (m.isrunning) {
         checkMenuEvents(&m);
         // Set bg color and fill the screen with it
@@ -171,6 +178,8 @@ int showMenu(menu m) {
         SDL_RenderClear(m.renderer);
 
         drawButton(m.menuTitleButton);
+        drawButton(versionFooter);
+
         // All menu options draw them
         for (int i = 0; i < m.numOptions; i++) {
             if (i == m.choice) {
