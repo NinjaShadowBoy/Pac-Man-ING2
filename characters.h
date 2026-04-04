@@ -1,7 +1,6 @@
 #include "stdio.h"
-#include "conio.h"
-#include "windows.h"
 #include "stdlib.h"
+#include "platform_compat.h"
 #include "time.h"
 
 #define TOP_THIN 196

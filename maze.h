@@ -1,7 +1,6 @@
 #include "stdio.h"
-#include "conio.h"
-#include "windows.h"
 #include "stdlib.h"
+#include "platform_compat.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include "characters.h"
