@@ -1,34 +1,41 @@
 # Project: Projectp
-# Makefile created by Dev-C++ 6.7.5
+# Portable-ish MinGW makefile derived from Dev-C++ output
 
-CPP      = g++.exe -D__DEBUG__
-CC       = gcc.exe -D__DEBUG__
-WINDRES  = windres.exe
-RES      = Projectp_private.res
-OBJ      = main.o $(RES)
-LINKOBJ  = main.o $(RES)
-LIBS     = -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib" -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/lib" -g3 -L"C:/SDL2/x86_64-w64-mingw32/lib" -mwindows -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -lSDL2_mixer
-INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp" -I"C:/SDL2/x86_64-w64-mingw32/include"
-CXXINCS  = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0/x86_64-w64-mingw32" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0/backward" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp" -I"C:/SDL2/x86_64-w64-mingw32/include"
-BIN      = Projectp.exe
-CXXFLAGS = $(CXXINCS) -Wall -Wextra -g3
-ENCODINGS = -finput-charset=utf-8 -fexec-charset=windows-1252
-CFLAGS   = $(INCS) -Wall -Wextra -g3
-RM       = del /q /f
+MINGW_PREFIX ?= C:/Program Files (x86)/Dev-Cpp/MinGW64
+SDL2_DIR ?= C:/SDL2/x86_64-w64-mingw32
+PROJECT_DIR ?= .
 
-.PHONY: all all-before all-after clean clean-custom
+CC ?= gcc.exe
+WINDRES ?= windres.exe
 
-all: all-before $(BIN) all-after
+BIN = Projectp.exe
+RES = Projectp_private.res
+OBJ = main.o button.o $(RES)
 
-clean: clean-custom
-	${RM} $(OBJ) $(BIN)
+MINGW_LIB = -L"$(MINGW_PREFIX)/lib" -L"$(MINGW_PREFIX)/x86_64-w64-mingw32/lib"
+SDL_LIB = -L"$(SDL2_DIR)/lib"
+LIBS = $(MINGW_LIB) $(SDL_LIB) -mwindows -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -lSDL2_mixer
+
+INCS = -I"$(PROJECT_DIR)" -I"$(SDL2_DIR)/include" -I"$(MINGW_PREFIX)/include" -I"$(MINGW_PREFIX)/x86_64-w64-mingw32/include"
+CFLAGS ?= $(INCS) -Wall -Wextra -g3
+
+RM = del /q /f
+
+.PHONY: all clean
+
+all: $(BIN)
 
 $(BIN): $(OBJ)
-	$(CC) $(LINKOBJ) -o "$(BIN)" $(LIBS)
+	$(CC) $(OBJ) -o "$(BIN)" $(LIBS)
 
 main.o: main.c
-	$(CC) -c main.c -o main.o $(CFLAGS) 
+	$(CC) -c main.c -o main.o $(CFLAGS)
 
-Projectp_private.res: Projectp_private.rc 
-	$(WINDRES) -i Projectp_private.rc --input-format=rc -o Projectp_private.res -O coff 
+button.o: button.c
+	$(CC) -c button.c -o button.o $(CFLAGS)
 
+$(RES): Projectp_private.rc
+	$(WINDRES) -i Projectp_private.rc --input-format=rc -o $(RES) -O coff
+
+clean:
+	-$(RM) $(OBJ) $(BIN)

@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <time.h>
-#include <windows.h>
 #include <stdlib.h>
-#include <conio.h>
+#include "platform_compat.h"
 #include <string.h>
 
 #include <SDL2/SDL.h>
