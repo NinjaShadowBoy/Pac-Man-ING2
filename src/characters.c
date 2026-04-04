@@ -1,5 +1,7 @@
 #include "characters.h"
 
+time_t ref;
+
 void randomize() {
 	if(rand()%2){
 		ref += time(NULL) +  rand();

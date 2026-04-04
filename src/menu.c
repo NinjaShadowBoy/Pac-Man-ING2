@@ -7,15 +7,6 @@ menu newMenu(SDL_Renderer *ren,
              int my, SDL_Color seleColor, SDL_Color idleColor,
              int bg_channel,
              Mix_Chunk *bg_sound, int click_channel,
-             Mix_Chunk *clickSound);
-int showMenu(menu m);
-menu newMenu(SDL_Renderer *ren,
-             char *menuTitle,
-             char **menutext, int numOptions,
-             int fontSize, int indent, int mx,
-             int my, SDL_Color seleColor, SDL_Color idleColor,
-             int bg_channel,
-             Mix_Chunk *bg_sound, int click_channel,
              Mix_Chunk *clickSound) {
     /*
     Creates a new button and ruturns it
