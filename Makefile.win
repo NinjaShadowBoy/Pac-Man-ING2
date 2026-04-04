@@ -5,8 +5,8 @@ CPP      = g++.exe -D__DEBUG__
 CC       = gcc.exe -D__DEBUG__
 WINDRES  = windres.exe
 RES      = Projectp_private.res
-OBJ      = src/main.o src/menu.o src/button.o src/maze.o src/pac.o src/characters.o src/global_variables.o src/ghost.o $(RES)
-LINKOBJ  = src/main.o src/menu.o src/button.o src/maze.o src/pac.o src/characters.o src/global_variables.o src/ghost.o $(RES)
+OBJ      = src/main.o src/menu.o src/button.o src/maze.o src/pac.o src/characters.o src/global_variables.o $(RES)
+LINKOBJ  = src/main.o src/menu.o src/button.o src/maze.o src/pac.o src/characters.o src/global_variables.o $(RES)
 LIBS     = -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib" -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/lib" -g3 -L"C:/SDL2/x86_64-w64-mingw32/lib" -mwindows -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -lSDL2_mixer
 INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp/include" -I"C:/SDL2/x86_64-w64-mingw32/include"
 CXXINCS  = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0/x86_64-w64-mingw32" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0/backward" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp/include" -I"C:/SDL2/x86_64-w64-mingw32/include"
@@ -47,8 +47,6 @@ src/characters.o: src/characters.c
 src/global_variables.o: src/global_variables.c
 	$(CC) -c src/global_variables.c -o src/global_variables.o $(CFLAGS)
 
-src/ghost.o: src/ghost.c
-	$(CC) -c src/ghost.c -o src/ghost.o $(CFLAGS)
 
 Projectp_private.res: Projectp_private.rc
 	$(WINDRES) -i Projectp_private.rc --input-format=rc -o Projectp_private.res -O coff
