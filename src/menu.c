@@ -1,39 +1,4 @@
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL_image.h>
-
-#include <pac.h>
-#include <button.h>
-
-typedef struct menu {
-    /*
-    A menu is a set of buttons:
-        - The title button
-        - The menu options' buttons
-    Among those buttons, one is highlighted
-    It also has a back ground music and a click sound (A sound to be played when a key is pressed while in menu)
-    */
-    char **menutext;        // Set of strings of the menu options
-    char *menuTitle;        // Text of menu title
-    int numOptions;         // NUmber of options in a menu
-    int mx;                 // x coordinate of the tile button
-    int my;                 // y coordinate of the tile button
-    int indent;             // Indent of the menu optionn's buttons with respect to the menu title button
-    int fontSize;           // Font size of the menu options' buttons
-    button **menuButtons;   // Menu options buttons
-    button menuTitleButton; // Menu title button
-    int bg_Channel;         // Channel of the bg music
-    int click_channel;      // Channel of the click sound
-    int choice;             // The option currently selected in the menu
-    int isrunning;          // A flag which tells if the menu is running or not
-    Mix_Chunk *bgSound;     // Back ground music
-    Mix_Chunk *clickSound;  // Click sound effect
-    SDL_Renderer *renderer; // Renderer
-    SDL_Color seleColor;    // Highlighted button's and menu title's font color
-    SDL_Color idleColor;    // Other buttons' font color
-} menu;
+#include "menu.h"
 
 menu newMenu(SDL_Renderer *ren,
              char *menuTitle,

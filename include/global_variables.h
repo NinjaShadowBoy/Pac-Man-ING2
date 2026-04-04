@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <time.h>
 #include <windows.h>
@@ -10,11 +12,8 @@
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_ttf.h>
 
-// Window height and width
 #define SCREEN_WIDTH 1920 / 1.5
 #define SCREEN_HEIGHT 1080 / 1.5
-
-// Different (track) channels
 
 #define TRACK0 0
 #define TRACK1 1
@@ -44,24 +43,18 @@
 #define TYPE NUM_OF_LEVEL_SOUND_TRACKS+16
 #define FAIL_LEVEL NUM_OF_LEVEL_SOUND_TRACKS+17
 
-#define NUM_CHANNELS NUM_OF_LEVEL_SOUND_TRACKS+18 // Total number of sound tracks (channels)
+#define NUM_CHANNELS NUM_OF_LEVEL_SOUND_TRACKS+18
 
-int Global_quit = 0;
+extern int Global_quit;
+extern int mm;
+extern int pause;
+extern int pauseOption;
+extern int playing;
 
-int mm = 1;
-int pause = 0;
-int pauseOption = 0;
-int playing = 1;
+extern SDL_Event event;
+extern Mix_Chunk *sounds[NUM_CHANNELS];
 
-
-// Variable to store keyboard events
-SDL_Event event;
-
-// Sounds
-Mix_Chunk *sounds[NUM_CHANNELS];
-
-// Maze colors
-SDL_Color bg_color = {0, 0, 10, 0};
-SDL_Color borderColor = {0, 0, 200, 0};
-SDL_Color white = {255, 255, 255, 0};
-SDL_Color yellow = {255, 255, 0, 0};
+extern SDL_Color bg_color;
+extern SDL_Color borderColor;
+extern SDL_Color white;
+extern SDL_Color yellow;

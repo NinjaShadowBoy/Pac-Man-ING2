@@ -1,3 +1,5 @@
+#pragma once
+
 #include "stdio.h"
 #include "conio.h"
 #include "windows.h"
@@ -51,27 +53,7 @@
 #define LEFT 75
 #define RIGHT 77
 
-time_t ref;
+extern time_t ref;
 
-
-void randomize() {
-	if(rand()%2){
-		ref += time(NULL) +  rand();
-	}else{
-		ref += time(NULL) -  rand();
-	}
-	srand(ref);
-}
-
-
-void gotoxy(int x, int y) {
-	HANDLE hConsoleOutput;
-	COORD dwCursorPosition;
-
-	dwCursorPosition.X = x;
-	dwCursorPosition.Y = y;
-	hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-	SetConsoleCursorPosition(hConsoleOutput, dwCursorPosition);
-
-	randomize();
-}
+void randomize(void);
+void gotoxy(int x, int y);

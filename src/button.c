@@ -1,30 +1,4 @@
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL_image.h>
-#include <stdio.h>
-#include <time.h>
-#include <stdlib.h>
-
-typedef struct button {
-    /*
-    A button is a piece of text displayed on the screen using in a rect
-    */
-    char text[100];         // Text on the button
-    char *fontDirectory;    // Directoty of the font used for the button
-    SDL_Color color;        // Color of the button
-    SDL_Renderer *renderer; // Renderer of the button
-    SDL_Rect rect;          // Rect of the button
-    SDL_Texture *texture;   // Botton texture (image of the button)
-    int fontSize;           // Font size used when creating button image
-} button;
-
-void createButtonTexture(button *b);
-button newButton(SDL_Renderer *ren, char *fontDirectory, int fontSize, SDL_Color txtColor, char *txt);
-void setButtonText(button *b, char *txt, int fontSize);
-int drawButton(button b);
-void printScore(button digits[20], int num, int x, int y);
+#include "button.h"
 
 void createButtonTexture(button *b) {
     /*
@@ -174,12 +148,7 @@ void showScoreAnimation(SDL_Renderer* ren, float score, float multiplier, int x,
     }
 }
 
-typedef struct record {
-    char name[20];
-    char mode[20];
-    int lvl;
-    int score;
-} record;
+
 
 void sortRecords(record** r, int count) {
     int sc, lvl;
