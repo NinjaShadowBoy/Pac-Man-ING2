@@ -1,11 +1,11 @@
 [Project]
 FileName=Projectp.dev
 Name=Projectp
-UnitCount=9
+UnitCount=14
 Type=0
 Ver=2
 ObjFiles=
-Includes="C:\Users\Reborn from Ashes\Documents\Projects\Projectp";C:\SDL2\x86_64-w64-mingw32\include
+Includes="C:\Users\Reborn from Ashes\Documents\Projects\Projectp";"C:\Users\Reborn from Ashes\Documents\Projects\Projectp\include";C:\SDL2\x86_64-w64-mingw32\include
 Libs=C:\SDL2\x86_64-w64-mingw32\lib
 PrivateResource=Projectp_private.rc
 ResourceIncludes=
@@ -36,18 +36,6 @@ StaticLink=0
 AddCharset=1
 UseUTF8=0
 
-[Unit1]
-FileName=main.c
-Folder=
-Compile=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-DetectEncoding=0
-Encoding=0
-CompileCpp=0
-
 [VersionInfo]
 Major=1
 Minor=0
@@ -67,8 +55,20 @@ ProductVersion=1.0.0.0
 AutoIncBuildNr=0
 SyncProduct=1
 
+[Unit1]
+FileName=src/main.c
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+DetectEncoding=0
+Encoding=0
+CompileCpp=0
+
 [Unit2]
-FileName=pac.h
+FileName=src/button.c
 CompileCpp=0
 Folder=
 Compile=1
@@ -80,7 +80,7 @@ DetectEncoding=0
 Encoding=0
 
 [Unit3]
-FileName=maze.h
+FileName=src/menu.c
 Folder=
 Compile=1
 Link=1
@@ -92,7 +92,7 @@ Encoding=0
 CompileCpp=0
 
 [Unit4]
-FileName=characters.h
+FileName=src/maze.c
 CompileCpp=0
 Folder=
 Compile=1
@@ -104,7 +104,7 @@ DetectEncoding=0
 Encoding=0
 
 [Unit5]
-FileName=menu.h
+FileName=src/pac.c
 CompileCpp=0
 Folder=
 Compile=1
@@ -116,7 +116,7 @@ DetectEncoding=0
 Encoding=0
 
 [Unit6]
-FileName=button.h
+FileName=src/characters.c
 CompileCpp=0
 Folder=
 Compile=1
@@ -128,7 +128,7 @@ DetectEncoding=0
 Encoding=0
 
 [Unit7]
-FileName=ghost.h
+FileName=src/global_variables.c
 CompileCpp=0
 Folder=
 Compile=1
@@ -140,7 +140,7 @@ DetectEncoding=0
 Encoding=0
 
 [Unit8]
-FileName=main.h
+FileName=include/main.h
 CompileCpp=0
 Folder=
 Compile=1
@@ -152,7 +152,7 @@ DetectEncoding=0
 Encoding=0
 
 [Unit9]
-FileName=global_variables.h
+FileName=include/button.h
 CompileCpp=0
 Folder=
 Compile=1
@@ -163,3 +163,62 @@ BuildCmd=
 DetectEncoding=0
 Encoding=0
 
+[Unit10]
+FileName=include/menu.h
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+DetectEncoding=0
+Encoding=0
+
+[Unit11]
+FileName=include/maze.h
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+DetectEncoding=0
+Encoding=0
+
+[Unit12]
+FileName=include/pac.h
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+DetectEncoding=0
+Encoding=0
+
+[Unit13]
+FileName=include/characters.h
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+DetectEncoding=0
+Encoding=0
+
+[Unit14]
+FileName=include/global_variables.h
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+DetectEncoding=0
+Encoding=0
