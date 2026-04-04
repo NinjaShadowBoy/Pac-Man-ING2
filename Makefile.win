@@ -8,12 +8,16 @@ RES      = Projectp_private.res
 OBJ      = main.o $(RES)
 LINKOBJ  = main.o $(RES)
 LIBS     = -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib" -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/lib" -g3 -L"C:/SDL2/x86_64-w64-mingw32/lib" -mwindows -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -lSDL2_mixer
-INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp" -I"C:/SDL2/x86_64-w64-mingw32/include"
+INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp" -I"C:/SDL2/x86_64-w64-mingw32/include" -I"include"
 CXXINCS  = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0/x86_64-w64-mingw32" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0/backward" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp" -I"C:/SDL2/x86_64-w64-mingw32/include"
 BIN      = Projectp.exe
+VERSION_FILE = VERSION
+VERSION      = $(strip $(shell cat $(VERSION_FILE)))
+VERSION_HEADER = include/version.h
+
 CXXFLAGS = $(CXXINCS) -Wall -Wextra -g3
 ENCODINGS = -finput-charset=utf-8 -fexec-charset=windows-1252
-CFLAGS   = $(INCS) -Wall -Wextra -g3
+CFLAGS   = $(INCS) -Wall -Wextra -g3 -DAPP_VERSION=\"$(VERSION)\"
 RM       = del /q /f
 
 .PHONY: all all-before all-after clean clean-custom
@@ -26,8 +30,12 @@ clean: clean-custom
 $(BIN): $(OBJ)
 	$(CC) $(LINKOBJ) -o "$(BIN)" $(LIBS)
 
-main.o: main.c
+main.o: main.c $(VERSION_HEADER)
 	$(CC) -c main.c -o main.o $(CFLAGS) 
+
+$(VERSION_HEADER): $(VERSION_FILE)
+	@mkdir -p include
+	@printf "#ifndef VERSION_H\n#define VERSION_H\n\n#ifndef APP_VERSION\n#define APP_VERSION \"%s\"\n#endif\n\n#define PACMAN_VERSION APP_VERSION\n\n#endif\n" "$(VERSION)" > $(VERSION_HEADER)
 
 Projectp_private.res: Projectp_private.rc 
 	$(WINDRES) -i Projectp_private.rc --input-format=rc -o Projectp_private.res -O coff 

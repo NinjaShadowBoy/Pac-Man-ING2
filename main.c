@@ -1,4 +1,5 @@
 #include <main.h>
+#include "version.h"
 
 #define RECORDS_FILE "data/records.dat"
 #define HIGHSCORES_FILE "data/high.dat"
@@ -447,6 +448,8 @@ int playLevel(int level, int gameMode, int previousScore) {
 }
 
 int main(int argc, char *argv[]) {
+
+    printf("Pac Man ING2 version %s\n", PACMAN_VERSION);
 
     // Load highscores and number of levels available
     FILE* fptr = fopen(HIGHSCORES_FILE, "r");
