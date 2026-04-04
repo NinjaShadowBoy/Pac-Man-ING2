@@ -1,3 +1,5 @@
+#include "maze.h"
+
 #include "stdio.h"
 #include "conio.h"
 #include "windows.h"

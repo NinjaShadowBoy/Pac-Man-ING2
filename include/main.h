@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <time.h>
 #include <windows.h>
@@ -10,8 +12,7 @@
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_ttf.h>
 
-
-#include <menu.h>
+#include "menu.h"
 
 void printScore(button digits[20], int num, int x, int y);
 void checkEvents(int numGhosts);

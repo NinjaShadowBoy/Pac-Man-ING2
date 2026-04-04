@@ -5,11 +5,11 @@ CPP      = g++.exe -D__DEBUG__
 CC       = gcc.exe -D__DEBUG__
 WINDRES  = windres.exe
 RES      = Projectp_private.res
-OBJ      = main.o $(RES)
-LINKOBJ  = main.o $(RES)
+OBJ      = src/main.o src/menu.o src/button.o src/maze.o src/pac.o src/characters.o src/global_variables.o src/ghost.o $(RES)
+LINKOBJ  = src/main.o src/menu.o src/button.o src/maze.o src/pac.o src/characters.o src/global_variables.o src/ghost.o $(RES)
 LIBS     = -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib" -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/lib" -g3 -L"C:/SDL2/x86_64-w64-mingw32/lib" -mwindows -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -lSDL2_mixer
-INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp" -I"C:/SDL2/x86_64-w64-mingw32/include"
-CXXINCS  = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0/x86_64-w64-mingw32" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0/backward" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp" -I"C:/SDL2/x86_64-w64-mingw32/include"
+INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp/include" -I"C:/SDL2/x86_64-w64-mingw32/include"
+CXXINCS  = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0/x86_64-w64-mingw32" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include/c++/10.3.0/backward" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/10.3.0/include-fixed" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Users/Reborn from Ashes/Documents/Projects/Projectp/include" -I"C:/SDL2/x86_64-w64-mingw32/include"
 BIN      = Projectp.exe
 CXXFLAGS = $(CXXINCS) -Wall -Wextra -g3
 ENCODINGS = -finput-charset=utf-8 -fexec-charset=windows-1252
@@ -26,9 +26,29 @@ clean: clean-custom
 $(BIN): $(OBJ)
 	$(CC) $(LINKOBJ) -o "$(BIN)" $(LIBS)
 
-main.o: main.c
-	$(CC) -c main.c -o main.o $(CFLAGS) 
+src/main.o: src/main.c
+	$(CC) -c src/main.c -o src/main.o $(CFLAGS)
 
-Projectp_private.res: Projectp_private.rc 
-	$(WINDRES) -i Projectp_private.rc --input-format=rc -o Projectp_private.res -O coff 
+src/menu.o: src/menu.c
+	$(CC) -c src/menu.c -o src/menu.o $(CFLAGS)
 
+src/button.o: src/button.c
+	$(CC) -c src/button.c -o src/button.o $(CFLAGS)
+
+src/maze.o: src/maze.c
+	$(CC) -c src/maze.c -o src/maze.o $(CFLAGS)
+
+src/pac.o: src/pac.c
+	$(CC) -c src/pac.c -o src/pac.o $(CFLAGS)
+
+src/characters.o: src/characters.c
+	$(CC) -c src/characters.c -o src/characters.o $(CFLAGS)
+
+src/global_variables.o: src/global_variables.c
+	$(CC) -c src/global_variables.c -o src/global_variables.o $(CFLAGS)
+
+src/ghost.o: src/ghost.c
+	$(CC) -c src/ghost.c -o src/ghost.o $(CFLAGS)
+
+Projectp_private.res: Projectp_private.rc
+	$(WINDRES) -i Projectp_private.rc --input-format=rc -o Projectp_private.res -O coff
