@@ -1,0 +1,28 @@
+# Build products
+*.o
+*.obj
+*.exe
+*.dll
+*.res
+
+# Build directories
+build/
+dist/
+
+# Temp/editor/IDE artifacts
+*.layout
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.cache/
+.cache-loader/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
